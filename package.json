@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "firebase": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
