@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bootstrap:super-admins": "tsx scripts/bootstrap-super-admins.ts"
   },
   "dependencies": {
     "firebase": "latest",
@@ -21,6 +22,8 @@
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "firebase-admin": "latest",
+    "tsx": "latest",
     "typescript": "latest"
   }
 }
