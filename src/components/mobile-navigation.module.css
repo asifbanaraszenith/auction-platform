@@ -1,160 +1,69 @@
 .mobileNavigation {
-  display: none;
+  display: block;
+  position: relative;
+  margin-left: auto;
+  z-index: 50;
 }
 
+.mobileMenuButton {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  border: 1px solid rgba(199, 164, 91, .55);
+  background: #151513;
+  color: #e2c47d;
+  cursor: pointer;
+}
+
+.mobileMenuButton span { display: block; width: 22px; height: 1px; background: currentColor; }
+
+.mobileMenuPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(300px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid rgba(199, 164, 91, .38);
+  background: #121210;
+  color: #f5f2e9;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+}
+
+.accountSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  background: #181815;
+}
+
+.accountAvatar { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid rgba(199, 164, 91, .6); border-radius: 50%; color: #e2c47d; font-family: Georgia, serif; }
+.accountDetails { min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: right; }
+.accountDetails strong,.accountDetails small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.accountDetails strong { color: #f5f2e9; font-family: Georgia, serif; font-weight: 400; }
+.accountDetails small { color: #aaa69a; font-size: 11px; }
+
+.mobileMenuPanel a,.mobileMenuPanel .menuAction { display: block; width: 100%; padding: 15px 14px; border: 0; border-bottom: 1px solid rgba(255, 255, 255, .08); background: transparent; color: #e6e1d6; text-decoration: none; font: inherit; font-size: 14px; text-align: right; cursor: pointer; }
+.mobileMenuPanel a:hover,.mobileMenuPanel .menuAction:hover { color: #e2c47d; background: #1b1a17; }
+.mobileMenuPanel .menuAction { border-bottom: 0; }
+
 @media (max-width: 760px) {
-  .mobileNavigation {
-    display: block;
-    position: relative;
-    margin-left: auto;
-    z-index: 20;
-  }
-
-  .mobileMenuButton {
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-content: center;
-    gap: 5px;
-    border: 1px solid rgba(199, 164, 91, .55);
-    background: #151513;
-    color: #e2c47d;
-    cursor: pointer;
-  }
-
-  .mobileMenuButton span {
-    display: block;
-    width: 20px;
-    height: 1px;
-    background: currentColor;
-  }
-
-  .mobileMenuPanel {
-    position: absolute;
-    top: 52px;
-    right: 0;
-    width: min(240px, calc(100vw - 32px));
-    padding: 8px;
-    border: 1px solid rgba(199, 164, 91, .28);
-    background: rgba(17, 17, 15, .98);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, .55);
-    backdrop-filter: blur(16px);
-  }
-
-  .mobileMenuPanel a,
-  .mobileMenuPanel span {
-    display: block;
-    width: 100%;
-    padding: 15px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, .06);
-    color: #d7d2c6;
-    text-decoration: none;
-    font-size: 14px;
-    text-align: left;
-  }
-
-  .mobileMenuPanel a:last-child,
-  .mobileMenuPanel span:last-child {
-    border-bottom: 0;
-  }
-
-  .mobileMenuPanel a:hover {
-    color: #e2c47d;
-    background: rgba(199, 164, 91, .06);
-  }
-
-  :global(.site-nav) {
-    display: none;
-  }
-
-  :global(.site-header) {
-    min-height: 72px;
-    padding: 12px 16px;
-    gap: 10px;
-  }
-
-  :global(.brand) {
-    min-width: 0;
-    gap: 10px;
-  }
-
-  :global(.brand-mark) {
-    width: 42px;
-    height: 42px;
-    font-size: 16px;
-  }
-
-  :global(.brand-name) {
-    font-size: 11px;
-    letter-spacing: .18em;
-  }
-
-  :global(.account-area) {
-    min-width: 0;
-    gap: 7px;
-  }
-
-  :global(.account-copy) {
-    display: none;
-  }
-
-  :global(.account-avatar) {
-    width: 38px;
-    height: 38px;
-  }
-
-  :global(.account-menu) {
-    font-size: 20px;
-  }
-
-  :global(.header-signin) {
-    padding: 9px 11px;
-    font-size: 11px;
-  }
-
-  :global(.hero-section) {
-    grid-template-columns: 1fr;
-    min-height: auto;
-    padding: 48px 20px 24px;
-    gap: 16px;
-  }
-
-  :global(.hero-copy h1) {
-    font-size: clamp(40px, 12vw, 58px);
-  }
-
-  :global(.desktop-break) {
-    display: none;
-  }
-
-  :global(.hero-description) {
-    font-size: 14px;
-  }
-
-  :global(.hero-art) {
-    min-height: 250px;
-    overflow: hidden;
-  }
-
-  :global(.hero-gavel) {
-    transform: scale(.72) rotate(-8deg);
-  }
-
-  :global(.welcome-card) {
-    top: 0;
-    right: 50%;
-    transform: translateX(50%);
-    width: min(330px, calc(100vw - 40px));
-  }
-
-  :global(.feature-grid) {
-    grid-template-columns: 1fr;
-    padding: 14px;
-    gap: 14px;
-  }
-
-  :global(.feature-card) {
-    min-height: 240px;
-    padding: 24px 18px;
-  }
+  .mobileMenuButton { width: 46px; height: 46px; }
+  :global(.site-nav) { display: none; }
+  :global(.site-header) { min-height: 72px; padding: 12px 16px; gap: 10px; }
+  :global(.brand) { min-width: 0; gap: 10px; }
+  :global(.brand-mark) { width: 42px; height: 42px; font-size: 16px; }
+  :global(.brand-name) { font-size: 11px; letter-spacing: .18em; }
+  :global(.hero-section) { grid-template-columns: 1fr; min-height: auto; padding: 48px 20px 24px; gap: 16px; }
+  :global(.hero-copy h1) { font-size: clamp(40px, 12vw, 58px); }
+  :global(.desktop-break) { display: none; }
+  :global(.hero-description) { font-size: 14px; }
+  :global(.hero-art) { min-height: 250px; overflow: hidden; }
+  :global(.hero-gavel) { transform: scale(.72) rotate(-8deg); }
+  :global(.feature-grid) { grid-template-columns: 1fr; padding: 14px; gap: 14px; }
+  :global(.feature-card) { min-height: 240px; padding: 24px 18px; }
 }
