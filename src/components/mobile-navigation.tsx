@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import styles from "./mobile-navigation.module.css";
 
 export function MobileNavigation({ authenticated }: { authenticated: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="mobile-navigation">
+    <div className={styles.mobileNavigation}>
       <button
-        className="mobile-menu-button"
+        className={styles.mobileMenuButton}
         type="button"
         aria-label={open ? "Close navigation menu" : "Open navigation menu"}
         aria-expanded={open}
@@ -21,7 +22,7 @@ export function MobileNavigation({ authenticated }: { authenticated: boolean }) 
       </button>
 
       {open ? (
-        <div className="mobile-menu-panel">
+        <div className={styles.mobileMenuPanel}>
           <Link href="/" onClick={() => setOpen(false)}>Home</Link>
           {authenticated ? (
             <Link href="/auctions" onClick={() => setOpen(false)}>Auctions</Link>
