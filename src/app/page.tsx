@@ -45,8 +45,6 @@ export default function HomePage() {
         <nav className="site-nav" aria-label="Primary navigation">
           <Link className="active" href="/">Home</Link>
           {user ? <Link href="/auctions">Auctions</Link> : <span>Auctions</span>}
-          <span>Profile</span>
-          <span>Settings</span>
         </nav>
         <MobileNavigation authenticated={Boolean(user)} displayName={user?.displayName} email={user?.email} onSignOut={() => void handleSignOut()} />
       </header>
