@@ -5,7 +5,7 @@ import { Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { createAuction, deleteAuction, listAuctionsForUser, updateAuction } from "@/lib/auctions/repository";
-import { AUCTION_MODES, DEFAULT_AUCTION_THEME, type Auction, type AuctionStatus, type AuctionTheme } from "@/lib/auctions/types";
+import { DEFAULT_AUCTION_THEME, type Auction, type AuctionStatus, type AuctionTheme } from "@/lib/auctions/types";
 import styles from "./auctions.module.css";
 
 const EMPTY_FORM = { name: "", description: "", mode: "live" as "live" | "timed", points: "Points", timezone: "Asia/Karachi", startAt: "", endAt: "" };
@@ -23,12 +23,9 @@ function dateValue(value: Timestamp | null) {
 function timestampValue(value: string) { return value ? Timestamp.fromDate(new Date(value)) : null; }
 function mergeTheme(theme?: Partial<AuctionTheme>): AuctionTheme { return { ...DEFAULT_AUCTION_THEME, ...theme }; }
 
-function calculateStatus(startAt: Timestamp | null, endAt: Timestamp | null, existingStatus?: AuctionStatus): AuctionStatus {
-  if (existingStatus === "paused" || existingStatus === "archived") return existingStatus;
-  const now = Date.now();
-  if (!startAt) return "draft";
-  if (startAt.toMillis() > now) return "scheduled";
-  if (endAt && endAt.toMillis() <= now) return "completed";
+function calculateStatus(startAt: Timestamp | null, existingStatus?: AuctionStatus): AuctionStatus {
+  if (existingStatus === "paused" || existingStatus === "ended" || existingStatus === "archived") return existingStatus;
+  if (!startAt || startAt.toMillis() > Date.now()) return "created";
   return "live";
 }
 
@@ -43,7 +40,7 @@ export default function AuctionManagementClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [, setClock] = useState(() => Date.now());
+  const [clock, setClock] = useState(() => Date.now());
 
   const sortedAuctions = useMemo(() => [...auctions].sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis()), [auctions]);
 
@@ -76,13 +73,35 @@ export default function AuctionManagementClient() {
   }
   function changeThemeMode(mode: "dark" | "light") { setTheme((current) => ({ ...current, ...THEME_PRESETS[mode] })); }
 
+  async function changeLifecycle(status: "live" | "paused" | "ended") {
+    if (!selected || !user) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await user.getIdToken(true);
+      await updateAuction(selected.id, { status });
+      const updated = { ...selected, status };
+      setSelected(updated);
+      setAuctions((current) => current.map((item) => item.id === selected.id ? updated : item));
+      setNotice(status === "live" ? "Auction resumed and is now live." : status === "paused" ? "Auction paused." : "Auction ended.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to change auction lifecycle.");
+    } finally { setBusy(false); }
+  }
+
   async function save() {
     if (!user) return;
     if (!form.name.trim()) { setError("Auction name is required before saving."); return; }
     const startAt = timestampValue(form.startAt);
     const endAt = timestampValue(form.endAt);
-    if (startAt && endAt && endAt.toMillis() <= startAt.toMillis()) { setError("End time must be after the start time."); return; }
-    const status = calculateStatus(startAt, endAt, selected?.status);
+    const selectedStatus = selected ? calculateStatus(selected.startAt, selected.status) : null;
+    const startChanged = Boolean(selected && ((selected.startAt?.toMillis() ?? null) !== (startAt?.toMillis() ?? null)));
+
+    if (!startAt) { setError("Start time is required."); return; }
+    if (startChanged && selectedStatus !== "created") { setError("Start time cannot be changed after an auction has started."); return; }
+    if (startAt.toMillis() <= Date.now() && (!selected || startChanged)) { setError("Start time must be in the future."); return; }
+    if (endAt && endAt.toMillis() <= startAt.toMillis()) { setError("Planned end time must be after the start time."); return; }
+
+    const status = selected ? calculateStatus(startAt, selected.status) : "created";
     setBusy(true); setError(""); setNotice("");
     try {
       await user.getIdToken(true);
@@ -92,13 +111,13 @@ export default function AuctionManagementClient() {
         const updated = { ...selected, name: form.name.trim(), description: form.description.trim(), status, startAt, endAt, settings };
         setSelected(updated); setNotice("Auction updated successfully.");
       } else {
-        const created = await createAuction({ name: form.name.trim(), description: form.description.trim(), ownerId: user.uid, adminIds: [user.uid], status, startAt, endAt, settings });
+        const created = await createAuction({ name: form.name.trim(), description: form.description.trim(), ownerId: user.uid, adminIds: [user.uid], status: "created", startAt, endAt, settings });
         setSelected(created); setNotice("Auction created successfully.");
       }
       try { setAuctions(await listAuctionsForUser(user)); } catch (refreshError) { console.error("Unable to refresh auction list", refreshError); }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to save auction.";
-      setError(message.includes("Missing or insufficient permissions") ? "You do not have permission to perform this auction action. Please refresh your session if Super Admin access was just granted." : message);
+      setError(message.includes("Missing or insufficient permissions") ? "You do not have permission to perform this auction action. Please refresh your session if your role was just granted." : message);
     } finally { setBusy(false); }
   }
 
@@ -113,6 +132,9 @@ export default function AuctionManagementClient() {
 
   if (loading || !user) return <main className={styles.loading}>Loading auction management…</main>;
 
+  const currentStatus = selected ? calculateStatus(selected.startAt, selected.status) : calculateStatus(timestampValue(form.startAt));
+  const minimumStart = new Date(clock + 60000).toISOString().slice(0, 16);
+
   return (
     <main className={styles.shell} data-theme={theme.mode} style={{ "--auction-primary": theme.primaryColor, "--auction-secondary": theme.secondaryColor, "--auction-background": theme.backgroundColor, "--auction-surface": theme.surfaceColor, "--auction-text": theme.textColor, "--auction-muted": theme.mutedColor, "--auction-border": theme.borderColor } as React.CSSProperties}>
       <header className={styles.header}>
@@ -122,20 +144,20 @@ export default function AuctionManagementClient() {
       <div className={styles.layout}>
         <aside className={styles.listPanel}>
           <div className={styles.listHeader}><span>Auctions</span><b>{sortedAuctions.length}</b></div>
-          {sortedAuctions.length === 0 ? <div className={styles.empty}>No auctions yet.<br />Create your first league auction.</div> : sortedAuctions.map((auction) => <button key={auction.id} className={`${styles.auctionItem} ${selected?.id === auction.id ? styles.selected : ""}`} onClick={() => selectAuction(auction)}><span className={styles.itemTop}><strong>{auction.name}</strong><em>{calculateStatus(auction.startAt, auction.endAt, auction.status)}</em></span><span className={styles.itemBottom}>{auction.settings.mode} · Points · {auction.settings.timezone}</span></button>)}
+          {sortedAuctions.length === 0 ? <div className={styles.empty}>No auctions yet.<br />Create your first league auction.</div> : sortedAuctions.map((auction) => <button key={auction.id} className={`${styles.auctionItem} ${selected?.id === auction.id ? styles.selected : ""}`} onClick={() => selectAuction(auction)}><span className={styles.itemTop}><strong>{auction.name}</strong><em>{calculateStatus(auction.startAt, auction.status)}</em></span><span className={styles.itemBottom}>{auction.settings.mode} · Points · {auction.settings.timezone}</span></button>)}
         </aside>
         <section className={styles.editor}>
           <div className={styles.sectionTitle}><div><p className={styles.eyebrow}>{selected ? "Edit auction" : "New auction"}</p><h2>{selected?.name || "Auction configuration"}</h2></div>{selected && <span className={styles.id}>ID {selected.id}</span>}</div>
           {error && <div className={styles.error}>{error}</div>}{notice && <div className={styles.notice}>{notice}</div>}
           <div className={styles.formGrid}>
             <label>AUCTION NAME<input value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setError(""); }} placeholder="Premier League 2026" /></label>
-            <label>STATUS<input value={calculateStatus(timestampValue(form.startAt), timestampValue(form.endAt), selected?.status).toUpperCase()} readOnly aria-readonly="true" /></label>
+            <label>STATUS<input value={currentStatus.toUpperCase()} readOnly aria-readonly="true" /></label>
             <label className={styles.full}>DESCRIPTION<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Auction purpose, league and operating notes" rows={4} /></label>
-            <label>MODE<select value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value as "live" | "timed" })}>{AUCTION_MODES.map((mode) => <option key={mode}>{mode}</option>)}</select></label>
+            <label>MODE<select value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value as "live" | "timed" })}><option value="live">live</option><option value="timed">timed</option></select></label>
             <label>POINT SYSTEM<input value="Points" readOnly aria-readonly="true" /></label>
             <label>TIMEZONE<select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}><option>Asia/Karachi</option><option>UTC</option><option>Asia/Dubai</option><option>Asia/Kolkata</option></select></label>
-            <label>START AT<input type="datetime-local" value={form.startAt} onChange={(e) => setForm({ ...form, startAt: e.target.value })} /></label>
-            <label>END AT<input type="datetime-local" value={form.endAt} onChange={(e) => setForm({ ...form, endAt: e.target.value })} /></label>
+            <label>START AT<input type="datetime-local" value={form.startAt} min={minimumStart} onChange={(e) => setForm({ ...form, startAt: e.target.value })} /></label>
+            <label>PLANNED END AT<input type="datetime-local" value={form.endAt} min={form.startAt || undefined} onChange={(e) => setForm({ ...form, endAt: e.target.value })} /></label>
           </div>
           <div className={styles.themePanel}>
             <div><p className={styles.eyebrow}>Auction-level visual identity</p><h3>Theme & branding</h3><p>Each auction owns its presentation. Select a base theme, then refine the colors below.</p></div>
@@ -149,6 +171,8 @@ export default function AuctionManagementClient() {
             </div>
             <div className={styles.preview} style={{ background: theme.backgroundColor, color: theme.textColor, borderColor: theme.borderColor }}><span style={{ color: theme.primaryColor }}>THE AUCTION</span><strong style={{ fontFamily: theme.fontStyle === "luxury" ? "Georgia, serif" : "Arial, sans-serif" }}>{form.name || "League Auction"}</strong><small style={{ color: theme.mutedColor }}>{form.description || "A private, curated bidding experience."}</small></div>
           </div>
+          {selected && currentStatus === "live" && <div className={styles.lifecycle}><button className={styles.statusButton} disabled={busy} onClick={() => void changeLifecycle("paused")}>PAUSE AUCTION</button><button className={styles.statusButton} disabled={busy} onClick={() => void changeLifecycle("ended")}>END AUCTION</button></div>}
+          {selected && currentStatus === "paused" && <div className={styles.lifecycle}><button className={styles.statusButton} disabled={busy} onClick={() => void changeLifecycle("live")}>RESUME AUCTION</button><button className={styles.statusButton} disabled={busy} onClick={() => void changeLifecycle("ended")}>END AUCTION</button></div>}
           <div className={styles.footerActions}>
             <button className={styles.primaryButton} disabled={busy} onClick={() => void save()}>{busy ? "SAVING…" : selected ? "SAVE CHANGES" : "CREATE AUCTION"}</button>
             {selected && isSuperAdmin && <button className={styles.dangerButton} disabled={busy} onClick={() => void remove()}>DELETE</button>}

@@ -9,6 +9,7 @@ import {
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { ensureUserProfile } from "@/lib/users/repository";
 
 function getAuthErrorCode(error: unknown) {
   if (typeof error === "object" && error !== null && "code" in error) {
@@ -32,11 +33,10 @@ export default function LoginPage() {
 
     try {
       const auth = getFirebaseAuth();
-      if (mode === "signin") {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
+      const credential = mode === "signin"
+        ? await signInWithEmailAndPassword(auth, email, password)
+        : await createUserWithEmailAndPassword(auth, email, password);
+      await ensureUserProfile(credential.user);
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed.");
@@ -55,7 +55,8 @@ export default function LoginPage() {
       // session; it does not sign the browser out of the user's Google account.
       // prompt=select_account gives the expected multi-account UX on the next sign-in.
       provider.setCustomParameters({ prompt: "select_account" });
-      await signInWithPopup(getFirebaseAuth(), provider);
+      const credential = await signInWithPopup(getFirebaseAuth(), provider);
+      await ensureUserProfile(credential.user);
       router.replace("/");
     } catch (err) {
       const code = getAuthErrorCode(err);
@@ -108,57 +109,21 @@ export default function LoginPage() {
           <form onSubmit={handleEmailAuth} className="auth-form">
             <label className="auth-field">
               <span>Email address</span>
-              <input
-                className="auth-input"
-                required
-                autoComplete="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
+              <input className="auth-input" required autoComplete="email" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} />
             </label>
-
             <label className="auth-field">
               <span>Password</span>
-              <input
-                className="auth-input"
-                required
-                minLength={6}
-                autoComplete={isSignIn ? "current-password" : "new-password"}
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
+              <input className="auth-input" required minLength={6} autoComplete={isSignIn ? "current-password" : "new-password"} type="password" placeholder="••••••••" value={password} onChange={(event) => setPassword(event.target.value)} />
             </label>
-
-            <button className="auth-primary" type="submit" disabled={busy}>
-              {busy ? "Please wait…" : isSignIn ? "Sign in" : "Create account"}
-            </button>
+            <button className="auth-primary" type="submit" disabled={busy}>{busy ? "Please wait…" : isSignIn ? "Sign in" : "Create account"}</button>
           </form>
 
           <div className="auth-divider" aria-hidden="true">or</div>
+          <button className="auth-google" type="button" onClick={handleGoogleAuth} disabled={busy}>Continue with Google</button>
 
-          <button className="auth-google" type="button" onClick={handleGoogleAuth} disabled={busy}>
-            Continue with Google
-          </button>
+          {error && <div className="auth-error" role="alert"><strong>Authentication notice</strong><div>{error}</div></div>}
 
-          {error && (
-            <div className="auth-error" role="alert">
-              <strong>Authentication notice</strong>
-              <div>{error}</div>
-            </div>
-          )}
-
-          <button
-            className="auth-switch"
-            type="button"
-            onClick={() => {
-              setError(null);
-              setMode(isSignIn ? "signup" : "signin");
-            }}
-          >
+          <button className="auth-switch" type="button" onClick={() => { setError(null); setMode(isSignIn ? "signup" : "signin"); }}>
             {isSignIn ? "Create a new account" : "I already have an account"}
           </button>
         </div>
