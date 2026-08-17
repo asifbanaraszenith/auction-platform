@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -65,4 +66,8 @@ export async function updateAuction(
     ...changes,
     updatedAt: Timestamp.now(),
   });
+}
+
+export async function deleteAuction(auctionId: string): Promise<void> {
+  await deleteDoc(doc(auctionsCollection(), auctionId));
 }
