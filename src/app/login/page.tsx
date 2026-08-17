@@ -10,7 +10,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 
-function getAuthError(error: unknown) {
+function getAuthErrorCode(error: unknown) {
   if (typeof error === "object" && error !== null && "code" in error) {
     return String((error as { code: unknown }).code);
   }
@@ -53,7 +53,7 @@ export default function LoginPage() {
       await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
       router.push("/");
     } catch (err) {
-      const code = getAuthError(err);
+      const code = getAuthErrorCode(err);
 
       if (code === "auth/unauthorized-domain") {
         const domain = typeof window !== "undefined" ? window.location.hostname : "this domain";
@@ -143,7 +143,6 @@ export default function LoginPage() {
             <div className="auth-error" role="alert">
               <strong>Authentication notice</strong>
               <div>{error}</div>
-              {getAuthError(error) === "auth/unauthorized-domain" && null}
             </div>
           )}
 
