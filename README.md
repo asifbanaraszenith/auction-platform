@@ -7,8 +7,8 @@ A generic, configurable auction platform for local leagues and other auction-bas
 | Phase | Status |
 |---|---|
 | Phase 1 — Foundation | Completed |
-| Phase 2 — Authentication | In progress |
-| Phase 3 — Auction Management | Pending |
+| Phase 2 — Authentication | Completed |
+| Phase 3 — Auction Management | In progress |
 | Phase 4 — Participants | Pending |
 | Phase 5 — Teams & Bidders | Pending |
 | Phase 6 — Auction Engine | Pending |
@@ -29,9 +29,15 @@ The platform is designed to be reusable for different leagues and auction format
 - **Database:** Cloud Firestore
 - **Hosting target:** Firebase App Hosting
 - **Configuration:** Firebase App Hosting automatic Web SDK configuration in production; local environment variables for development
-- **Security:** no service-account credentials in source control
+- **Security:** Firestore rules use Firebase Auth custom claims for Super Admin access and auction-level admin membership for Auction Admin access
 
-Firebase App Hosting can automatically supply the Firebase Web SDK configuration to the JavaScript SDK. Privileged server credentials, if introduced in later phases, must remain server-side.
+Firebase App Hosting can automatically supply the Firebase Web SDK configuration to the JavaScript SDK. Privileged server credentials, including anything used to provision Super Admin custom claims, must remain server-side and must never be committed.
+
+## Phase 03 Domain Model
+
+Auctions are stored under `auctions/{auctionId}` with ownership, admin membership, lifecycle status, scheduling, and settings. Theme configuration is intentionally stored inside each auction so light/dark mode, colors, branding, and typography can vary independently by auction.
+
+The default visual language remains the Dark Luxury theme: deep charcoal, gold/ivory accents, and serif display typography.
 
 ## Development Workflow
 
@@ -45,6 +51,7 @@ Detailed phase documentation is maintained under `docs/phases/`.
 
 - [Phase 1 — Foundation](docs/phases/PHASE-01-FOUNDATION.md)
 - [Phase 2 — Authentication](docs/phases/PHASE-02-AUTHENTICATION.md)
+- [Phase 3 — Auction Management](docs/phases/PHASE-03-AUCTION-MANAGEMENT.md)
 
 ## Repository Branching Strategy
 
@@ -61,4 +68,7 @@ main
               ↓ merge
             main
               └── phase-03-auction-management
+                    ↓ merge
+                  main
+                    └── phase-04-participants
 ```
