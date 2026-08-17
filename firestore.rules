@@ -29,6 +29,17 @@ service cloud.firestore {
         && request.resource.data.ownerId == resource.data.ownerId;
     }
 
+    function validInitialAuctionStatus() {
+      return request.resource.data.status == 'draft'
+        || (request.resource.data.status == 'scheduled'
+          && request.resource.data.startAt != null
+          && request.resource.data.startAt > request.time)
+        || (request.resource.data.status == 'live'
+          && request.resource.data.startAt != null
+          && request.resource.data.startAt <= request.time
+          && (request.resource.data.endAt == null || request.resource.data.endAt > request.time));
+    }
+
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || superAdmin());
 
@@ -51,12 +62,13 @@ service cloud.firestore {
       allow get, list: if superAdmin() || auctionAdmin(auctionId);
 
       // Only a Firebase Auth custom-claim Super Admin can create an auction.
-      // This prevents any authenticated user from self-assigning ownership.
+      // The initial status must match the schedule so status remains derived,
+      // rather than allowing an arbitrary client-supplied lifecycle state.
       allow create: if superAdmin()
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.adminIds is list
         && request.auth.uid in request.resource.data.adminIds
-        && request.resource.data.status == 'draft';
+        && validInitialAuctionStatus();
 
       allow update: if canManageAuction(auctionId)
         && (superAdmin() || immutableAuctionAdminFields());
