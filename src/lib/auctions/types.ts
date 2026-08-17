@@ -1,11 +1,10 @@
 import type { Timestamp } from "firebase/firestore";
 
 export const AUCTION_STATUSES = [
-  "draft",
-  "scheduled",
+  "created",
   "live",
   "paused",
-  "completed",
+  "ended",
   "archived",
 ] as const;
 
