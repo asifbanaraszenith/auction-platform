@@ -40,7 +40,7 @@ export default function AuctionManagementClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [, setClock] = useState(() => Date.now());
+  const [clock, setClock] = useState(() => Date.now());
 
   const sortedAuctions = useMemo(() => [...auctions].sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis()), [auctions]);
 
@@ -133,6 +133,7 @@ export default function AuctionManagementClient() {
   if (loading || !user) return <main className={styles.loading}>Loading auction management…</main>;
 
   const currentStatus = selected ? calculateStatus(selected.startAt, selected.status) : calculateStatus(timestampValue(form.startAt));
+  const minimumStart = new Date(clock + 60000).toISOString().slice(0, 16);
 
   return (
     <main className={styles.shell} data-theme={theme.mode} style={{ "--auction-primary": theme.primaryColor, "--auction-secondary": theme.secondaryColor, "--auction-background": theme.backgroundColor, "--auction-surface": theme.surfaceColor, "--auction-text": theme.textColor, "--auction-muted": theme.mutedColor, "--auction-border": theme.borderColor } as React.CSSProperties}>
@@ -155,7 +156,7 @@ export default function AuctionManagementClient() {
             <label>MODE<select value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value as "live" | "timed" })}><option value="live">live</option><option value="timed">timed</option></select></label>
             <label>POINT SYSTEM<input value="Points" readOnly aria-readonly="true" /></label>
             <label>TIMEZONE<select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}><option>Asia/Karachi</option><option>UTC</option><option>Asia/Dubai</option><option>Asia/Kolkata</option></select></label>
-            <label>START AT<input type="datetime-local" value={form.startAt} min={new Date(Date.now() + 60000).toISOString().slice(0, 16)} onChange={(e) => setForm({ ...form, startAt: e.target.value })} /></label>
+            <label>START AT<input type="datetime-local" value={form.startAt} min={minimumStart} onChange={(e) => setForm({ ...form, startAt: e.target.value })} /></label>
             <label>PLANNED END AT<input type="datetime-local" value={form.endAt} min={form.startAt || undefined} onChange={(e) => setForm({ ...form, endAt: e.target.value })} /></label>
           </div>
           <div className={styles.themePanel}>
