@@ -4,7 +4,17 @@ import Link from "next/link";
 import { useState } from "react";
 import styles from "./mobile-navigation.module.css";
 
-export function MobileNavigation({ authenticated }: { authenticated: boolean }) {
+export function MobileNavigation({
+  authenticated,
+  displayName,
+  email,
+  onSignOut,
+}: {
+  authenticated: boolean;
+  displayName?: string | null;
+  email?: string | null;
+  onSignOut?: () => void;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -22,15 +32,25 @@ export function MobileNavigation({ authenticated }: { authenticated: boolean }) 
       </button>
 
       {open ? (
-        <div className={styles.mobileMenuPanel}>
+        <div className={styles.mobileMenuPanel} role="menu">
+          {authenticated ? (
+            <div className={styles.accountSection}>
+              <span className={styles.accountAvatar} aria-hidden="true">
+                {(displayName ?? email ?? "A").charAt(0).toUpperCase()}
+              </span>
+              <div className={styles.accountDetails}>
+                <strong>{displayName ?? "Auction Member"}</strong>
+                <small>{email ?? "Authenticated account"}</small>
+              </div>
+            </div>
+          ) : null}
           <Link href="/" onClick={() => setOpen(false)}>Home</Link>
           {authenticated ? (
             <Link href="/auctions" onClick={() => setOpen(false)}>Auctions</Link>
           ) : (
-            <span aria-disabled="true">Auctions</span>
+            <Link href="/login" onClick={() => setOpen(false)}>Sign in</Link>
           )}
-          <span>Profile</span>
-          <span>Settings</span>
+          {authenticated ? <button className={styles.menuAction} type="button" onClick={() => { setOpen(false); onSignOut?.(); }}>Sign out</button> : null}
         </div>
       ) : null}
     </div>
