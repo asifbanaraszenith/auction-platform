@@ -6,8 +6,8 @@ A generic, configurable auction platform for local leagues and other auction-bas
 
 | Phase | Status |
 |---|---|
-| Phase 1 — Foundation | In progress |
-| Phase 2 — Authentication | Pending |
+| Phase 1 — Foundation | Completed |
+| Phase 2 — Authentication | In progress |
 | Phase 3 — Auction Management | Pending |
 | Phase 4 — Participants | Pending |
 | Phase 5 — Teams & Bidders | Pending |
