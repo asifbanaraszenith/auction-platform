@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { useAuth } from "@/components/auth-provider";
+import { MobileNavigation } from "@/components/mobile-navigation";
 
 const featureCards = [
   { title: "Participants", description: "Manage players, agents, and other participants.", icon: "people" },
@@ -81,6 +82,7 @@ export default function HomePage() {
           <span>Profile</span>
           <span>Settings</span>
         </nav>
+        <MobileNavigation authenticated={Boolean(user)} />
         <div className="account-area">
           {loading ? (
             <span className="account-loading">Checking session…</span>
