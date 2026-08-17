@@ -1,16 +1,16 @@
-.mobile-navigation {
+.mobileNavigation {
   display: none;
 }
 
 @media (max-width: 760px) {
-  .mobile-navigation {
+  .mobileNavigation {
     display: block;
     position: relative;
     margin-left: auto;
     z-index: 20;
   }
 
-  .mobile-menu-button {
+  .mobileMenuButton {
     width: 44px;
     height: 44px;
     display: grid;
@@ -22,14 +22,14 @@
     cursor: pointer;
   }
 
-  .mobile-menu-button span {
+  .mobileMenuButton span {
     display: block;
     width: 20px;
     height: 1px;
     background: currentColor;
   }
 
-  .mobile-menu-panel {
+  .mobileMenuPanel {
     position: absolute;
     top: 52px;
     right: 0;
@@ -41,8 +41,8 @@
     backdrop-filter: blur(16px);
   }
 
-  .mobile-menu-panel a,
-  .mobile-menu-panel span {
+  .mobileMenuPanel a,
+  .mobileMenuPanel span {
     display: block;
     width: 100%;
     padding: 15px 16px;
@@ -53,12 +53,12 @@
     text-align: left;
   }
 
-  .mobile-menu-panel a:last-child,
-  .mobile-menu-panel span:last-child {
+  .mobileMenuPanel a:last-child,
+  .mobileMenuPanel span:last-child {
     border-bottom: 0;
   }
 
-  .mobile-menu-panel a:hover {
+  .mobileMenuPanel a:hover {
     color: #e2c47d;
     background: rgba(199, 164, 91, .06);
   }
