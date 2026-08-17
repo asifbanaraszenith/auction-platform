@@ -28,14 +28,14 @@ jobs:
       - name: Commit generated package-lock.json
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json is already committed."
-          else
+          if git status --porcelain -- package-lock.json | grep -q .; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add package-lock.json
             git commit -m "build: add npm lockfile for App Hosting"
             git push
+          else
+            echo "package-lock.json is already committed and unchanged."
           fi
 
       - name: Typecheck
