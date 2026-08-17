@@ -47,4 +47,14 @@ jobs:
         run: npm run lint
 
       - name: Production build
-        run: npm run build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build-output.log
+
+      - name: Report production build failure
+        if: failure()
+        run: |
+          if [ -f build-output.log ]; then
+            summary=$(tail -n 25 build-output.log | tr '\n' ' ' | cut -c1-1800)
+            echo "::error title=Production build failed::$summary"
+          fi

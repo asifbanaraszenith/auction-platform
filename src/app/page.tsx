@@ -6,26 +6,10 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { useAuth } from "@/components/auth-provider";
 
 const featureCards = [
-  {
-    title: "Participants",
-    description: "Manage players, agents, and other participants.",
-    icon: "people",
-  },
-  {
-    title: "Teams",
-    description: "Configure and manage teams and their rosters.",
-    icon: "shield",
-  },
-  {
-    title: "Bidding",
-    description: "Real-time bidding experience for live auctions.",
-    icon: "gavel",
-  },
-  {
-    title: "Purse validation",
-    description: "Validate budgets, spending rules, and purse management.",
-    icon: "document",
-  },
+  { title: "Participants", description: "Manage players, agents, and other participants.", icon: "people" },
+  { title: "Teams", description: "Configure and manage teams and their rosters.", icon: "shield" },
+  { title: "Bidding", description: "Real-time bidding experience for live auctions.", icon: "gavel" },
+  { title: "Purse validation", description: "Validate budgets, spending rules, and purse management.", icon: "document" },
 ];
 
 function FeatureIcon({ name }: { name: string }) {
@@ -39,7 +23,6 @@ function FeatureIcon({ name }: { name: string }) {
       </svg>
     );
   }
-
   if (name === "shield") {
     return (
       <svg viewBox="0 0 48 48" aria-hidden="true">
@@ -48,7 +31,6 @@ function FeatureIcon({ name }: { name: string }) {
       </svg>
     );
   }
-
   if (name === "document") {
     return (
       <svg viewBox="0 0 48 48" aria-hidden="true">
@@ -59,7 +41,6 @@ function FeatureIcon({ name }: { name: string }) {
       </svg>
     );
   }
-
   return (
     <svg viewBox="0 0 48 48" aria-hidden="true">
       <path d="M11 10l27 27M37 10L10 37" />
@@ -73,13 +54,9 @@ function GavelIllustration() {
   return (
     <div className="hero-gavel" aria-hidden="true">
       <div className="gavel-shadow" />
-      <div className="gavel-head">
-        <span />
-      </div>
+      <div className="gavel-head"><span /></div>
       <div className="gavel-handle" />
-      <div className="gavel-base">
-        <div />
-      </div>
+      <div className="gavel-base"><div /></div>
     </div>
   );
 }
@@ -96,34 +73,22 @@ export default function HomePage() {
       <header className="site-header">
         <Link className="brand" href="/" aria-label="Auction Platform home">
           <span className="brand-mark">AP</span>
-          <span className="brand-name">
-            <strong>AUCTION</strong>
-            <strong>PLATFORM</strong>
-          </span>
+          <span className="brand-name"><strong>AUCTION</strong><strong>PLATFORM</strong></span>
         </Link>
-
         <nav className="site-nav" aria-label="Primary navigation">
           <Link className="active" href="/">Home</Link>
-          <span>Auctions</span>
+          {user ? <Link href="/auctions">Auctions</Link> : <span>Auctions</span>}
           <span>Profile</span>
           <span>Settings</span>
         </nav>
-
         <div className="account-area">
           {loading ? (
             <span className="account-loading">Checking session…</span>
           ) : user ? (
             <>
-              <span className="account-avatar" aria-hidden="true">
-                {(user.displayName ?? user.email ?? "A").charAt(0).toUpperCase()}
-              </span>
-              <span className="account-copy">
-                <strong>{user.displayName ?? "Auction Member"}</strong>
-                <small>{user.email ?? "Authenticated account"}</small>
-              </span>
-              <button className="account-menu" type="button" onClick={handleSignOut} aria-label="Sign out">
-                ↗
-              </button>
+              <span className="account-avatar" aria-hidden="true">{(user.displayName ?? user.email ?? "A").charAt(0).toUpperCase()}</span>
+              <span className="account-copy"><strong>{user.displayName ?? "Auction Member"}</strong><small>{user.email ?? "Authenticated account"}</small></span>
+              <button className="account-menu" type="button" onClick={handleSignOut} aria-label="Sign out">↗</button>
             </>
           ) : (
             <Link className="header-signin" href="/login">Sign in</Link>
@@ -136,31 +101,28 @@ export default function HomePage() {
           <p className="section-kicker">Auction Platform</p>
           <h1>Configurable auction<br className="desktop-break" /> platform for leagues</h1>
           <span className="gold-rule" aria-hidden="true" />
-          <p className="hero-description">
-            Phase 2 establishes Firebase Authentication with email/password and Google sign-in.
-            The foundation is ready for the auction experience to follow.
-          </p>
-          <Link className="hero-cta" href="/login">
-            <span>Open authentication</span>
+          <p className="hero-description">Phase 3 establishes secure auction management, lifecycle controls, responsive administration, and auction-level visual configuration.</p>
+          <Link className="hero-cta" href={user ? "/auctions" : "/login"}>
+            <span>{user ? "Manage auctions" : "Open authentication"}</span>
             <span aria-hidden="true">→</span>
           </Link>
         </div>
-
         <div className="hero-art">
           <GavelIllustration />
-          {user && !loading && (
+          {user && !loading ? (
             <div className="welcome-card">
               <div className="welcome-icon">♙</div>
               <p>Welcome back,</p>
               <h2>{user.displayName ?? "Auction Member"}</h2>
               <small>{user.email}</small>
+              <Link href="/auctions">Open management</Link>
               <button type="button" onClick={handleSignOut}>Sign out</button>
             </div>
-          )}
+          ) : null}
         </div>
       </section>
 
-      <section className="feature-section" aria-label="Upcoming capabilities">
+      <section className="feature-section" aria-label="Platform capabilities">
         <div className="feature-grid">
           {featureCards.map((feature) => (
             <article className="feature-card" key={feature.title}>
