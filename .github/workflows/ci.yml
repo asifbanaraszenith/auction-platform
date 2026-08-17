@@ -44,7 +44,17 @@ jobs:
         run: npm run typecheck
 
       - name: Lint
-        run: npm run lint
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee lint-output.log
+
+      - name: Report lint failure
+        if: failure()
+        run: |
+          if [ -f lint-output.log ]; then
+            summary=$(tail -n 40 lint-output.log | tr '\n' ' ' | cut -c1-1800)
+            echo "::error title=Lint failed::$summary"
+          fi
 
       - name: Production build
         run: |
