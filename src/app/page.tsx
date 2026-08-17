@@ -1,6 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { signOut } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebase/client";
+import { useAuth } from "@/components/auth-provider";
 
 export default function HomePage() {
+  const { user, loading } = useAuth();
+
+  async function handleSignOut() {
+    await signOut(getFirebaseAuth());
+  }
+
   return (
     <main>
       <section style={{ maxWidth: 960, margin: "0 auto", padding: 24 }}>
@@ -9,7 +20,19 @@ export default function HomePage() {
         <p>
           Phase 2 establishes Firebase Authentication with email/password and Google sign-in.
         </p>
-        <Link href="/login">Open authentication</Link>
+
+        {loading ? (
+          <p>Checking authentication…</p>
+        ) : user ? (
+          <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+            <p>Signed in as {user.email ?? user.uid}</p>
+            <button type="button" onClick={handleSignOut}>
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <Link href="/login">Open authentication</Link>
+        )}
       </section>
     </main>
   );
