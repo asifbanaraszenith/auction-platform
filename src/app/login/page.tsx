@@ -37,7 +37,7 @@ export default function LoginPage() {
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
       }
-      router.push("/");
+      router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed.");
     } finally {
@@ -50,8 +50,13 @@ export default function LoginPage() {
     setBusy(true);
 
     try {
-      await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider());
-      router.push("/");
+      const provider = new GoogleAuthProvider();
+      // Always show Google's account chooser. Firebase signOut ends the app
+      // session; it does not sign the browser out of the user's Google account.
+      // prompt=select_account gives the expected multi-account UX on the next sign-in.
+      provider.setCustomParameters({ prompt: "select_account" });
+      await signInWithPopup(getFirebaseAuth(), provider);
+      router.replace("/");
     } catch (err) {
       const code = getAuthErrorCode(err);
 
