@@ -1,5 +1,11 @@
 import { getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  getAuth,
+  initializeAuth,
+  type Auth,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const requiredEnv = {
@@ -10,6 +16,8 @@ const requiredEnv = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
+
+let firebaseAuth: Auth | null = null;
 
 function getFirebaseConfig() {
   const missing = Object.entries(requiredEnv)
@@ -46,7 +54,27 @@ export function getFirebaseApp() {
 }
 
 export function getFirebaseAuth() {
-  return getAuth(getFirebaseApp());
+  if (firebaseAuth) {
+    return firebaseAuth;
+  }
+
+  const app = getFirebaseApp();
+
+  try {
+    // Use explicit browser localStorage persistence instead of the default
+    // IndexedDB-backed persistence. This avoids browser database lifecycle
+    // failures that can break OAuth completion on mobile browsers while
+    // retaining persistent sessions across browser restarts.
+    firebaseAuth = initializeAuth(app, {
+      persistence: browserLocalPersistence,
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
+  } catch {
+    // Hot reloads or another module may already have initialized Auth.
+    firebaseAuth = getAuth(app);
+  }
+
+  return firebaseAuth;
 }
 
 export function getFirebaseDb() {
