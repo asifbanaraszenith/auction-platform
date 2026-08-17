@@ -15,6 +15,33 @@ Establish the secure Firestore domain model and authorization boundary for creat
 - Audit logs are append-only from the application.
 - All unmatched documents default to deny.
 
+### Final Super Admin model
+The application uses Firebase Authentication custom claims as the **final authorization mechanism**. Super Admin status is never inferred from an email address in Firestore rules and can never be granted by client code.
+
+The two initial Super Admin accounts are:
+
+- `asifbanaras.zenith@gmail.com`
+- `shaistanazir.zenith@gmail.com`
+
+These addresses are used only by the one-time trusted bootstrap script to identify the initial accounts. The Firestore rules authorize them through the resulting `superAdmin: true` Auth custom claim, not through their email addresses.
+
+### One-time bootstrap
+`scripts/bootstrap-super-admins.ts` uses the Firebase Admin SDK and Application Default Credentials (ADC) to assign `superAdmin: true` to the two initial accounts. It contains no service-account key and must never be executed from the browser or deployed to the client.
+
+The preferred operator environment is **Google Cloud Shell**, because it is browser-based and Google documents that Cloud Shell does not require a separate local `gcloud auth application-default login` setup for ADC. The operator must have sufficient IAM/Firebase permissions to administer Authentication.
+
+From Cloud Shell:
+
+```bash
+git clone https://github.com/asifbanaraszenith/auction-platform.git
+cd auction-platform
+git checkout phase-03-auction-management
+npm install
+npm run bootstrap:super-admins
+```
+
+After successful execution, both users must sign out and sign back in so their Firebase ID tokens refresh and contain the new claim.
+
 ### Role model
 
 | Role | Scope | Phase 03 authority |
@@ -23,8 +50,6 @@ Establish the secure Firestore domain model and authorization boundary for creat
 | Auction Admin | Assigned auctions | Read/update assigned auctions; cannot change ownership/admin membership |
 | Participant | Registered auction | No auction-management writes |
 | Bidder | Registered auction | No auction-management writes |
-
-Super Admin provisioning must use a trusted Firebase Admin environment that can set Auth custom claims. No client-controlled Firestore field can grant Super Admin privileges.
 
 ### Auction schema
 
@@ -53,8 +78,8 @@ Theme is part of `auction.settings`, not a global application singleton. The def
 
 ## Remaining Phase 03 work
 
-- [ ] Super Admin provisioning procedure verified
-- [ ] Firestore rules deployed to Firebase
+- [ ] Run the one-time Super Admin bootstrap
+- [ ] Deploy Firestore rules/indexes to Firebase
 - [ ] Auction management list screen
 - [ ] Create auction screen
 - [ ] Edit auction screen
@@ -67,9 +92,9 @@ Theme is part of `auction.settings`, not a global application singleton. The def
 
 ## Verification gate
 
-1. Deploy Firestore rules/indexes.
-2. Provision a test Super Admin through a trusted Admin environment.
-3. Sign in as Super Admin and create a draft auction.
+1. Run the one-time trusted Super Admin bootstrap.
+2. Deploy Firestore rules/indexes.
+3. Sign in as either Super Admin and create a draft auction.
 4. Verify its assigned Auction Admin can read/update it.
 5. Verify the Auction Admin cannot change `ownerId` or `adminIds`.
 6. Verify an unrelated authenticated user cannot read or modify it.
@@ -79,4 +104,4 @@ Theme is part of `auction.settings`, not a global application singleton. The def
 
 ## Security note
 
-Firebase client configuration is not a service-account credential. Any Admin SDK credential used to provision Super Admin claims must remain in a trusted server/CI secret store and never be committed.
+Firebase client configuration is not a service-account credential. The Admin SDK uses ADC in the trusted bootstrap environment; no service-account key is committed to the repository. Production privileged operations must remain server-side.
