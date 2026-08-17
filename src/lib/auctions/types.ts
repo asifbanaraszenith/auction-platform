@@ -44,7 +44,7 @@ export const DEFAULT_AUCTION_THEME: AuctionTheme = {
 
 export type AuctionSettings = {
   mode: AuctionMode;
-  currency: string;
+  points: string;
   timezone: string;
   theme: AuctionTheme;
 };

@@ -33,7 +33,7 @@ Establish the secure Firestore domain model, authorization boundary, and respons
 - `status`: `draft | scheduled | live | paused | completed | archived`
 - `startAt`, `endAt`
 - `settings.mode`: `live | timed`
-- `settings.currency`, `settings.timezone`
+- `settings.points`, `settings.timezone`
 - `settings.theme`
 - `createdAt`, `updatedAt`
 
@@ -44,7 +44,8 @@ Establish the secure Firestore domain model, authorization boundary, and respons
 - Responsive auction management workspace at `/auctions`.
 - Create auction flow.
 - Edit auction flow.
-- Auction lifecycle controls for draft, scheduled, live, paused, completed and archived states.
+- Status is calculated from the auction schedule: draft without a start time, scheduled before start, live during the active window, and completed after the end time. Paused and archived remain explicit administrative overrides.
+- Points-based auction configuration; currency/money fields are not used.
 - Super Admin-only delete control.
 - Auction-level theme configuration persisted inside `settings.theme`.
 - Dark Luxury and Light Gallery modes.
@@ -64,7 +65,7 @@ The remaining gate is deployment validation:
 
 1. CI typecheck/lint/build must pass on the Phase 03 PR.
 2. Firestore rules/indexes must be deployed with the production baseline.
-3. Production Super Admin creates a draft auction.
+3. Production Super Admin creates an auction with a schedule and verifies automatic status transitions.
 4. Assigned Auction Admin can read/update the auction.
 5. Auction Admin cannot change `ownerId` or `adminIds`.
 6. Unrelated authenticated user cannot read or modify it.
