@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import { getFirebaseDb } from "@/lib/firebase/client";
 
@@ -15,12 +15,23 @@ export type UserProfile = {
 const usersCollection = () => collection(getFirebaseDb(), "users");
 
 export async function ensureUserProfile(user: User): Promise<void> {
-  await setDoc(doc(usersCollection(), user.uid), {
+  const reference = doc(usersCollection(), user.uid);
+  const snapshot = await getDoc(reference);
+  if (snapshot.exists()) {
+    await updateDoc(reference, {
+      email: user.email ?? "",
+      displayName: user.displayName ?? "",
+      updatedAt: serverTimestamp(),
+    });
+    return;
+  }
+  await setDoc(reference, {
     email: user.email ?? "",
     displayName: user.displayName ?? "",
     role: "participant",
+    createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  }, { merge: true });
+  });
 }
 
 export async function listUserProfiles(): Promise<UserProfile[]> {
