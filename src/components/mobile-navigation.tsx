@@ -6,13 +6,11 @@ import styles from "./mobile-navigation.module.css";
 
 export function MobileNavigation({
   authenticated,
-  superAdmin,
   displayName,
   email,
   onSignOut,
 }: {
   authenticated: boolean;
-  superAdmin?: boolean;
   displayName?: string | null;
   email?: string | null;
   onSignOut?: () => void;
@@ -35,7 +33,7 @@ export function MobileNavigation({
           ) : null}
           <Link href="/" onClick={() => setOpen(false)}>Home</Link>
           {authenticated ? <Link href="/auctions" onClick={() => setOpen(false)}>Auctions</Link> : <Link href="/login" onClick={() => setOpen(false)}>Sign in</Link>}
-          {authenticated && superAdmin ? <Link href="/admin/users" onClick={() => setOpen(false)}>User & role management</Link> : null}
+          {authenticated ? <Link href="/admin/users" onClick={() => setOpen(false)}>User & role management</Link> : null}
           {authenticated ? <button className={styles.menuAction} type="button" onClick={() => { setOpen(false); onSignOut?.(); }}>Sign out</button> : null}
         </div>
       ) : null}
