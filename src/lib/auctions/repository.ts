@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -13,7 +12,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
-import { getFirebaseDb } from "@/lib/firebase/client";
+import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import type { Auction, CreateAuctionInput } from "@/lib/auctions/types";
 
 function auctionsCollection() {
@@ -25,7 +24,7 @@ function toAuction(id: string, data: DocumentData): Auction {
 }
 
 export async function createAuction(input: CreateAuctionInput): Promise<Auction> {
-  const user = (await import("@/lib/firebase/client")).getFirebaseAuth().currentUser;
+  const user = getFirebaseAuth().currentUser;
   if (!user) throw new Error("Authentication required.");
 
   const token = await user.getIdToken(true);
