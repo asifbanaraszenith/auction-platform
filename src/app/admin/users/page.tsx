@@ -31,6 +31,11 @@ export default function UserManagementPage() {
     })();
   }, [loading, router, user]);
 
+  useEffect(() => {
+    if (!error && !notice) return;
+    requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-app-alert='true']")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [error, notice]);
+
   async function changeRole(uid: string, role: UserRole) {
     if (!user || !isSuperAdmin) return;
     const target = users.find((item) => item.uid === uid);
@@ -61,8 +66,8 @@ export default function UserManagementPage() {
         <div className={styles.actions}><button onClick={() => router.push("/")}>Back</button></div>
       </header>
 
-      {error && <div className={styles.error}>{error}</div>}
-      {notice && <div className={styles.notice}>{notice}</div>}
+      {error && <div className={styles.error} data-app-alert="true" role="alert">{error}</div>}
+      {notice && <div className={styles.notice} data-app-alert="true" role="status">{notice}</div>}
 
       <section className={styles.card}>
         <div className={styles.cardHeader}><span>AUTHENTICATED USERS</span><b>{users.length}</b></div>
