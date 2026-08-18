@@ -101,13 +101,6 @@ export async function PUT(request: Request) {
     const currentStatus = String(current.status ?? "created");
     if (!isValidLifecycleTransition(currentStatus, nextStatus, startAtMillis)) return NextResponse.json({ error: `Invalid auction lifecycle transition from ${currentStatus} to ${nextStatus}.` }, { status: 400 });
 
-    const currentStart = current.startAt instanceof Timestamp ? current.startAt.toMillis() : null;
-    const currentEnd = current.endAt instanceof Timestamp ? current.endAt.toMillis() : null;
-    const scheduleChanged = currentStart !== startAtMillis || currentEnd !== endAtMillis;
-    if (scheduleChanged && startAtMillis <= Date.now()) return NextResponse.json({ error: "Start time must be in the future when the schedule is changed." }, { status: 400 });
-    if (nextStatus === "created" && startAtMillis <= Date.now() && scheduleChanged) return NextResponse.json({ error: "A changed auction start time must be in the future." }, { status: 400 });
-    if (nextStatus === "live" && startAtMillis > Date.now()) return NextResponse.json({ error: "An auction can only be marked live after its start time." }, { status: 400 });
-
     const updatedAt = Timestamp.now();
     await reference.update({ name, description, status: nextStatus, startAt: Timestamp.fromMillis(startAtMillis), endAt: Timestamp.fromMillis(endAtMillis), settings, updatedAt });
     return NextResponse.json({ auctionId, name, description, status: nextStatus, startAtMillis, endAtMillis, settings, updatedAtMillis: updatedAt.toMillis() });
