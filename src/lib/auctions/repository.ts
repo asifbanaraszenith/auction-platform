@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -13,7 +12,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
-import { getFirebaseDb } from "@/lib/firebase/client";
+import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import type { Auction, CreateAuctionInput } from "@/lib/auctions/types";
 
 function auctionsCollection() {
@@ -25,14 +24,41 @@ function toAuction(id: string, data: DocumentData): Auction {
 }
 
 export async function createAuction(input: CreateAuctionInput): Promise<Auction> {
-  const now = Timestamp.now();
-  const reference = await addDoc(auctionsCollection(), {
-    ...input,
-    createdAt: now,
-    updatedAt: now,
+  const user = getFirebaseAuth().currentUser;
+  if (!user) throw new Error("Authentication required.");
+
+  const token = await user.getIdToken(true);
+  const response = await fetch("/api/auctions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      ...input,
+      startAtMillis: input.startAt?.toMillis() ?? null,
+      endAtMillis: input.endAt?.toMillis() ?? null,
+    }),
   });
 
-  return { id: reference.id, ...input, createdAt: now, updatedAt: now };
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Unable to create auction.");
+  }
+
+  return {
+    id: payload.id,
+    name: payload.name,
+    description: payload.description,
+    ownerId: payload.ownerId,
+    adminIds: payload.adminIds,
+    status: payload.status,
+    startAt: Timestamp.fromMillis(payload.startAtMillis),
+    endAt: Timestamp.fromMillis(payload.endAtMillis),
+    settings: payload.settings,
+    createdAt: Timestamp.fromMillis(payload.createdAtMillis),
+    updatedAt: Timestamp.fromMillis(payload.updatedAtMillis),
+  };
 }
 
 export async function getAuction(auctionId: string): Promise<Auction | null> {
