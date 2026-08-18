@@ -21,6 +21,16 @@ async function authorize(request: Request) {
   return { db, decoded, isSuperAdmin };
 }
 
+function isValidLifecycleTransition(current: string, next: string, startAtMillis: number) {
+  if (current === next) return true;
+  if (current === "created" && (next === "live" || next === "paused" || next === "ended")) return startAtMillis <= Date.now();
+  if (current === "live" && next === "paused") return true;
+  if (current === "paused" && next === "live") return true;
+  if ((current === "live" || current === "paused") && next === "ended") return true;
+  if (current === "ended" && next === "archived") return true;
+  return false;
+}
+
 export async function GET(request: Request) {
   try {
     const { db, decoded, isSuperAdmin } = await authorize(request);
@@ -62,6 +72,51 @@ export async function POST(request: Request) {
     if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Insufficient permissions." }, { status: 403 });
     console.error("Auction creation failed", error);
     return NextResponse.json({ error: "Unable to create auction." }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const { db, decoded, isSuperAdmin } = await authorize(request);
+    const body = await request.json();
+    const auctionId = typeof body.auctionId === "string" ? body.auctionId.trim() : "";
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const description = typeof body.description === "string" ? body.description.trim() : "";
+    const startAtMillis = Number(body.startAtMillis);
+    const endAtMillis = Number(body.endAtMillis);
+    const settings = body.settings;
+    const nextStatus = typeof body.status === "string" ? body.status : "";
+    if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
+    if (!name) return NextResponse.json({ error: "Auction name is required before saving." }, { status: 400 });
+    if (!Number.isFinite(startAtMillis) || !Number.isFinite(endAtMillis)) return NextResponse.json({ error: "Start and end times are required." }, { status: 400 });
+    if (endAtMillis <= startAtMillis) return NextResponse.json({ error: "End time must be after the start time." }, { status: 400 });
+    if (!settings || typeof settings !== "object") return NextResponse.json({ error: "Auction settings are required." }, { status: 400 });
+
+    const reference = db.collection("auctions").doc(auctionId);
+    const snapshot = await reference.get();
+    if (!snapshot.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
+    const current = snapshot.data()!;
+    const currentAdminIds = Array.isArray(current.adminIds) ? current.adminIds : [];
+    if (!isSuperAdmin && !currentAdminIds.includes(decoded.uid)) return NextResponse.json({ error: "You are not assigned to this auction." }, { status: 403 });
+    const currentStatus = String(current.status ?? "created");
+    if (!isValidLifecycleTransition(currentStatus, nextStatus, startAtMillis)) return NextResponse.json({ error: `Invalid auction lifecycle transition from ${currentStatus} to ${nextStatus}.` }, { status: 400 });
+
+    const currentStart = current.startAt instanceof Timestamp ? current.startAt.toMillis() : null;
+    const currentEnd = current.endAt instanceof Timestamp ? current.endAt.toMillis() : null;
+    const scheduleChanged = currentStart !== startAtMillis || currentEnd !== endAtMillis;
+    if (scheduleChanged && startAtMillis <= Date.now()) return NextResponse.json({ error: "Start time must be in the future when the schedule is changed." }, { status: 400 });
+    if (nextStatus === "created" && startAtMillis <= Date.now() && scheduleChanged) return NextResponse.json({ error: "A changed auction start time must be in the future." }, { status: 400 });
+    if (nextStatus === "live" && startAtMillis > Date.now()) return NextResponse.json({ error: "An auction can only be marked live after its start time." }, { status: 400 });
+
+    const updatedAt = Timestamp.now();
+    await reference.update({ name, description, status: nextStatus, startAt: Timestamp.fromMillis(startAtMillis), endAt: Timestamp.fromMillis(endAtMillis), settings, updatedAt });
+    return NextResponse.json({ auctionId, name, description, status: nextStatus, startAtMillis, endAtMillis, settings, updatedAtMillis: updatedAt.toMillis() });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update auction.";
+    if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Insufficient permissions." }, { status: 403 });
+    console.error("Auction update failed", error);
+    return NextResponse.json({ error: "Unable to update auction." }, { status: 500 });
   }
 }
 
