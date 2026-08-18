@@ -8,7 +8,7 @@ import { createAuction, deleteAuction, listAuctionsForUser, updateAuction } from
 import { DEFAULT_AUCTION_THEME, type Auction, type AuctionStatus, type AuctionTheme } from "@/lib/auctions/types";
 import styles from "./auctions.module.css";
 
-const EMPTY_FORM = { name: "", description: "", mode: "live" as "live" | "timed", points: "Points", timezone: "Asia/Karachi", startAt: "", endAt: "" };
+const EMPTY_FORM = { name: "", description: "", points: "Points", timezone: "Asia/Karachi", startAt: "", endAt: "" };
 const THEME_PRESETS: Record<"dark" | "light", Partial<AuctionTheme>> = {
   dark: { mode: "dark", primaryColor: "#c7a45b", secondaryColor: "#f5f2e9", backgroundColor: "#0d0d0c", surfaceColor: "#121210", textColor: "#f5f2e9", mutedColor: "#aaa69a", borderColor: "#3b3932" },
   light: { mode: "light", primaryColor: "#8b6a2b", secondaryColor: "#1d1b17", backgroundColor: "#f6f3eb", surfaceColor: "#ffffff", textColor: "#1d1b17", mutedColor: "#69645a", borderColor: "#d6cfbf" },
@@ -67,7 +67,7 @@ export default function AuctionManagementClient() {
   function startCreate() { setSelected(null); setForm(EMPTY_FORM); setTheme(DEFAULT_AUCTION_THEME); setError(""); setNotice(""); }
   function selectAuction(auction: Auction) {
     setSelected(auction);
-    setForm({ name: auction.name, description: auction.description, mode: auction.settings.mode, points: auction.settings.points || "Points", timezone: auction.settings.timezone, startAt: dateValue(auction.startAt), endAt: dateValue(auction.endAt) });
+    setForm({ name: auction.name, description: auction.description, points: auction.settings.points || "Points", timezone: auction.settings.timezone, startAt: dateValue(auction.startAt), endAt: dateValue(auction.endAt) });
     setTheme(mergeTheme(auction.settings.theme));
     setError(""); setNotice("");
   }
@@ -97,15 +97,16 @@ export default function AuctionManagementClient() {
     const startChanged = Boolean(selected && ((selected.startAt?.toMillis() ?? null) !== (startAt?.toMillis() ?? null)));
 
     if (!startAt) { setError("Start time is required."); return; }
+    if (!endAt) { setError("End time is required."); return; }
     if (startChanged && selectedStatus !== "created") { setError("Start time cannot be changed after an auction has started."); return; }
     if (startAt.toMillis() <= Date.now() && (!selected || startChanged)) { setError("Start time must be in the future."); return; }
-    if (endAt && endAt.toMillis() <= startAt.toMillis()) { setError("Planned end time must be after the start time."); return; }
+    if (endAt.toMillis() <= startAt.toMillis()) { setError("End time must be after the start time."); return; }
 
     const status = selected ? calculateStatus(startAt, selected.status) : "created";
     setBusy(true); setError(""); setNotice("");
     try {
       await user.getIdToken(true);
-      const settings = { mode: form.mode, points: "Points", timezone: form.timezone, theme };
+      const settings = { mode: "timed" as const, points: "Points", timezone: form.timezone, theme };
       if (selected) {
         await updateAuction(selected.id, { name: form.name.trim(), description: form.description.trim(), status, startAt, endAt, settings });
         const updated = { ...selected, name: form.name.trim(), description: form.description.trim(), status, startAt, endAt, settings };
@@ -132,7 +133,7 @@ export default function AuctionManagementClient() {
 
   if (loading || !user) return <main className={styles.loading}>Loading auction management…</main>;
 
-  const currentStatus = selected ? calculateStatus(selected.startAt, selected.status) : calculateStatus(timestampValue(form.startAt));
+  const currentStatus = selected ? calculateStatus(selected.startAt, selected.status) : null;
   const minimumStart = new Date(clock + 60000).toISOString().slice(0, 16);
 
   return (
@@ -144,20 +145,18 @@ export default function AuctionManagementClient() {
       <div className={styles.layout}>
         <aside className={styles.listPanel}>
           <div className={styles.listHeader}><span>Auctions</span><b>{sortedAuctions.length}</b></div>
-          {sortedAuctions.length === 0 ? <div className={styles.empty}>No auctions yet.<br />Create your first league auction.</div> : sortedAuctions.map((auction) => <button key={auction.id} className={`${styles.auctionItem} ${selected?.id === auction.id ? styles.selected : ""}`} onClick={() => selectAuction(auction)}><span className={styles.itemTop}><strong>{auction.name}</strong><em>{calculateStatus(auction.startAt, auction.status)}</em></span><span className={styles.itemBottom}>{auction.settings.mode} · Points · {auction.settings.timezone}</span></button>)}
+          {sortedAuctions.length === 0 ? <div className={styles.empty}>No auctions yet.<br />Create your first league auction.</div> : sortedAuctions.map((auction) => <button key={auction.id} className={`${styles.auctionItem} ${selected?.id === auction.id ? styles.selected : ""}`} onClick={() => selectAuction(auction)}><span className={styles.itemTop}><strong>{auction.name}</strong><em>{calculateStatus(auction.startAt, auction.status)}</em></span><span className={styles.itemBottom}>Timed · Points · {auction.settings.timezone}</span></button>)}
         </aside>
         <section className={styles.editor}>
           <div className={styles.sectionTitle}><div><p className={styles.eyebrow}>{selected ? "Edit auction" : "New auction"}</p><h2>{selected?.name || "Auction configuration"}</h2></div>{selected && <span className={styles.id}>ID {selected.id}</span>}</div>
           {error && <div className={styles.error}>{error}</div>}{notice && <div className={styles.notice}>{notice}</div>}
           <div className={styles.formGrid}>
             <label>AUCTION NAME<input value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); setError(""); }} placeholder="Premier League 2026" /></label>
-            <label>STATUS<input value={currentStatus.toUpperCase()} readOnly aria-readonly="true" /></label>
             <label className={styles.full}>DESCRIPTION<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Auction purpose, league and operating notes" rows={4} /></label>
-            <label>MODE<select value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value as "live" | "timed" })}><option value="live">live</option><option value="timed">timed</option></select></label>
             <label>POINT SYSTEM<input value="Points" readOnly aria-readonly="true" /></label>
             <label>TIMEZONE<select value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}><option>Asia/Karachi</option><option>UTC</option><option>Asia/Dubai</option><option>Asia/Kolkata</option></select></label>
-            <label>START AT<input type="datetime-local" value={form.startAt} min={minimumStart} onChange={(e) => setForm({ ...form, startAt: e.target.value })} /></label>
-            <label>PLANNED END AT<input type="datetime-local" value={form.endAt} min={form.startAt || undefined} onChange={(e) => setForm({ ...form, endAt: e.target.value })} /></label>
+            <label className={styles.full}>START AT<input type="datetime-local" value={form.startAt} min={minimumStart} onChange={(e) => setForm({ ...form, startAt: e.target.value, endAt: form.endAt && new Date(e.target.value) >= new Date(form.endAt) ? "" : form.endAt })} /></label>
+            <label className={styles.full}>END AT<input type="datetime-local" value={form.endAt} min={form.startAt || undefined} onChange={(e) => setForm({ ...form, endAt: e.target.value })} /></label>
           </div>
           <div className={styles.themePanel}>
             <div><p className={styles.eyebrow}>Auction-level visual identity</p><h3>Theme & branding</h3><p>Each auction owns its presentation. Select a base theme, then refine the colors below.</p></div>
