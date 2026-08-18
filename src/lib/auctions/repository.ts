@@ -3,12 +3,8 @@ import {
   deleteDoc,
   doc,
   getDoc,
-  getDocs,
-  orderBy,
-  query,
   Timestamp,
   updateDoc,
-  where,
   type DocumentData,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
@@ -42,9 +38,7 @@ export async function createAuction(input: CreateAuctionInput): Promise<Auction>
   });
 
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.error || "Unable to create auction.");
-  }
+  if (!response.ok) throw new Error(payload.error || "Unable to create auction.");
 
   return {
     id: payload.id,
@@ -67,21 +61,28 @@ export async function getAuction(auctionId: string): Promise<Auction | null> {
 }
 
 export async function listAuctionsForUser(user: User): Promise<Auction[]> {
-  const token = await user.getIdTokenResult();
-  const isSuperAdmin = token.claims.superAdmin === true;
-  const auctions = auctionsCollection();
+  const token = await user.getIdToken(true);
+  const response = await fetch("/api/auctions", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Unable to load auctions.");
 
-  const snapshots = isSuperAdmin
-    ? await getDocs(query(auctions, orderBy("updatedAt", "desc")))
-    : await getDocs(
-        query(
-          auctions,
-          where("adminIds", "array-contains", user.uid),
-          orderBy("updatedAt", "desc"),
-        ),
-      );
-
-  return snapshots.docs.map((snapshot) => toAuction(snapshot.id, snapshot.data()));
+  return (payload.auctions ?? []).map((auction: Record<string, unknown>) => ({
+    id: String(auction.id),
+    name: String(auction.name ?? ""),
+    description: String(auction.description ?? ""),
+    ownerId: String(auction.ownerId ?? ""),
+    adminIds: Array.isArray(auction.adminIds) ? auction.adminIds.map(String) : [],
+    status: auction.status,
+    startAt: typeof auction.startAtMillis === "number" ? Timestamp.fromMillis(auction.startAtMillis) : null,
+    endAt: typeof auction.endAtMillis === "number" ? Timestamp.fromMillis(auction.endAtMillis) : null,
+    settings: auction.settings,
+    createdAt: Timestamp.fromMillis(Number(auction.createdAtMillis)),
+    updatedAt: Timestamp.fromMillis(Number(auction.updatedAtMillis)),
+  })) as Auction[];
 }
 
 export async function updateAuction(
