@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
 } from "firebase/auth";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { ensureUserProfile } from "@/lib/users/repository";
@@ -25,6 +25,11 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!error) return;
+    requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-app-alert='true']")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [error]);
 
   async function handleEmailAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,9 +56,6 @@ export default function LoginPage() {
 
     try {
       const provider = new GoogleAuthProvider();
-      // Always show Google's account chooser. Firebase signOut ends the app
-      // session; it does not sign the browser out of the user's Google account.
-      // prompt=select_account gives the expected multi-account UX on the next sign-in.
       provider.setCustomParameters({ prompt: "select_account" });
       const credential = await signInWithPopup(getFirebaseAuth(), provider);
       await ensureUserProfile(credential.user);
@@ -121,7 +123,7 @@ export default function LoginPage() {
           <div className="auth-divider" aria-hidden="true">or</div>
           <button className="auth-google" type="button" onClick={handleGoogleAuth} disabled={busy}>Continue with Google</button>
 
-          {error && <div className="auth-error" role="alert"><strong>Authentication notice</strong><div>{error}</div></div>}
+          {error && <div className="auth-error" data-app-alert="true" role="alert"><strong>Authentication notice</strong><div>{error}</div></div>}
 
           <button className="auth-switch" type="button" onClick={() => { setError(null); setMode(isSignIn ? "signup" : "signin"); }}>
             {isSignIn ? "Create a new account" : "I already have an account"}
