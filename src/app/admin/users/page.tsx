@@ -33,6 +33,11 @@ export default function UserManagementPage() {
 
   async function changeRole(uid: string, role: UserRole) {
     if (!user || !isSuperAdmin) return;
+    const target = users.find((item) => item.uid === uid);
+    if (target?.isSuperAdmin) {
+      setError("Super Admin accounts are protected and cannot be changed here.");
+      return;
+    }
     setBusyUid(uid); setError(""); setNotice("");
     try {
       await updateUserRole(uid, role);
@@ -51,7 +56,7 @@ export default function UserManagementPage() {
         <div>
           <p className={styles.eyebrow}>Auction Platform / Administration</p>
           <h1>User & Role Management</h1>
-          <p className={styles.subtitle}>Manage authenticated Firebase users and assign application roles. Super Admin remains an Auth custom claim and cannot be granted from this screen.</p>
+          <p className={styles.subtitle}>Manage authenticated Firebase users and assign application roles. Super Admin is a protected Auth custom claim and cannot be granted, removed, or overwritten from this screen.</p>
         </div>
         <div className={styles.actions}><button onClick={() => router.push("/")}>Back</button></div>
       </header>
@@ -64,17 +69,28 @@ export default function UserManagementPage() {
         <div className={styles.table}>
           {users.map((item) => (
             <div className={styles.row} key={item.uid}>
-              <div className={styles.identity}><strong>{item.displayName || "Unnamed user"}</strong><span>{item.email}</span><small>{item.uid}</small></div>
-              <select value={item.role} disabled={busyUid === item.uid} onChange={(event) => void changeRole(item.uid, event.target.value as UserRole)} aria-label={`Role for ${item.email}`}>
-                {USER_ROLES.map((role) => <option key={role} value={role}>{role === "auctionAdmin" ? "Auction Admin" : role === "participant" ? "Participant" : "Bidder"}</option>)}
-              </select>
+              <div className={styles.identity}>
+                <strong>{item.displayName || "Unnamed user"}</strong>
+                <span>{item.email}</span>
+                <small>{item.uid}</small>
+                {item.isSuperAdmin && <em className={styles.superAdminBadge}>SUPER ADMIN · PROTECTED</em>}
+              </div>
+              {item.isSuperAdmin ? (
+                <div className={styles.protectedRole} aria-label={`Super Admin role for ${item.email}`}>
+                  Super Admin
+                </div>
+              ) : (
+                <select value={item.role} disabled={busyUid === item.uid} onChange={(event) => void changeRole(item.uid, event.target.value as UserRole)} aria-label={`Role for ${item.email}`}>
+                  {USER_ROLES.map((role) => <option key={role} value={role}>{role === "auctionAdmin" ? "Auction Admin" : role === "participant" ? "Participant" : "Bidder"}</option>)}
+                </select>
+              )}
             </div>
           ))}
           {users.length === 0 && <div className={styles.empty}>No authenticated users exist in this Firebase project.</div>}
         </div>
       </section>
 
-      <p className={styles.securityNote}>User management is authorized server-side with the Super Admin Auth custom claim. Existing Firebase accounts are shown even if their Firestore profile document does not exist yet; those accounts default to Participant until a role is assigned.</p>
+      <p className={styles.securityNote}>Super Admin is read from the Firebase Authentication custom claim. Those accounts are displayed for visibility but are locked from application-role changes. Other Firebase accounts default to Participant until a role is assigned.</p>
     </main>
   );
 }

@@ -40,7 +40,13 @@ export async function GET(request: Request) {
     const users = authUsers.map((user, index) => {
       const data = profiles[index].exists ? profiles[index].data() : undefined;
       const role = USER_ROLES.includes(data?.role as UserRole) ? data?.role as UserRole : "participant";
-      return { uid: user.uid, email: user.email ?? "", displayName: user.displayName ?? "", role };
+      return {
+        uid: user.uid,
+        email: user.email ?? "",
+        displayName: user.displayName ?? "",
+        role,
+        isSuperAdmin: user.customClaims?.superAdmin === true,
+      };
     }).sort((a, b) => (a.email || a.displayName).localeCompare(b.email || b.displayName));
 
     return NextResponse.json({ users });
@@ -63,7 +69,12 @@ export async function PATCH(request: Request) {
     if (!uid) return NextResponse.json({ error: "User ID is required." }, { status: 400 });
     if (!USER_ROLES.includes(role)) return NextResponse.json({ error: "Invalid user role." }, { status: 400 });
 
-    const user = await getAuth(app).getUser(uid);
+    const auth = getAuth(app);
+    const user = await auth.getUser(uid);
+    if (user.customClaims?.superAdmin === true) {
+      return NextResponse.json({ error: "Super Admin accounts cannot be changed from application role management." }, { status: 409 });
+    }
+
     const now = Timestamp.now();
     const reference = db.collection("users").doc(uid);
     const snapshot = await reference.get();
