@@ -71,14 +71,15 @@ export async function PATCH(request: Request) {
     if (!isSuperAdmin) return NextResponse.json({ error: "Only Super Admin can assign auction admins." }, { status: 403 });
     const body = await request.json();
     const auctionId = typeof body.auctionId === "string" ? body.auctionId.trim() : "";
-    const adminIds = Array.isArray(body.adminIds) ? [...new Set(body.adminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0))] : null;
+    const rawAdminIds: unknown = body.adminIds;
+    if (!Array.isArray(rawAdminIds)) return NextResponse.json({ error: "Admin selection is required." }, { status: 400 });
+    const adminIds: string[] = [...new Set(rawAdminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0))];
     if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
-    if (!adminIds) return NextResponse.json({ error: "Admin selection is required." }, { status: 400 });
 
     const auction = await db.collection("auctions").doc(auctionId).get();
     if (!auction.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
     if (adminIds.length) {
-      const profiles = await Promise.all(adminIds.map((uid) => db.collection("users").doc(uid).get()));
+      const profiles = await Promise.all(adminIds.map((uid: string) => db.collection("users").doc(uid).get()));
       const invalid = profiles.some((profile) => !profile.exists || profile.data()?.role !== "auctionAdmin");
       if (invalid) return NextResponse.json({ error: "Every assigned user must have the Auction Admin role." }, { status: 400 });
     }
