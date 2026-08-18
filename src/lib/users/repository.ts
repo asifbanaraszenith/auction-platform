@@ -1,6 +1,6 @@
-import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
-import { getFirebaseDb } from "@/lib/firebase/client";
+import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 
 export const USER_ROLES = ["auctionAdmin", "participant", "bidder"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
@@ -34,19 +34,31 @@ export async function ensureUserProfile(user: User): Promise<void> {
   });
 }
 
+async function getAdminToken() {
+  const user = getFirebaseAuth().currentUser;
+  if (!user) throw new Error("Authentication required.");
+  return user.getIdToken(true);
+}
+
 export async function listUserProfiles(): Promise<UserProfile[]> {
-  const snapshot = await getDocs(usersCollection());
-  return snapshot.docs.map((item) => {
-    const data = item.data();
-    return {
-      uid: item.id,
-      email: String(data.email ?? ""),
-      displayName: String(data.displayName ?? ""),
-      role: USER_ROLES.includes(data.role as UserRole) ? data.role as UserRole : "participant",
-    };
-  }).sort((a, b) => a.email.localeCompare(b.email));
+  const token = await getAdminToken();
+  const response = await fetch("/api/admin/users", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Unable to load users.");
+  return (payload.users ?? []) as UserProfile[];
 }
 
 export async function updateUserRole(uid: string, role: UserRole): Promise<void> {
-  await updateDoc(doc(usersCollection(), uid), { role, updatedAt: serverTimestamp() });
+  const token = await getAdminToken();
+  const response = await fetch("/api/admin/users", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ uid, role }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Unable to update user role.");
 }
