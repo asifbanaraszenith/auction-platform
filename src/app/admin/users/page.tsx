@@ -37,7 +37,7 @@ export default function UserManagementPage() {
     try {
       await updateUserRole(uid, role);
       setUsers((current) => current.map((item) => item.uid === uid ? { ...item, role } : item));
-      setNotice("User role updated. The change is effective immediately for Firestore role checks.");
+      setNotice("User role updated successfully.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update user role.");
     } finally { setBusyUid(null); }
@@ -51,7 +51,7 @@ export default function UserManagementPage() {
         <div>
           <p className={styles.eyebrow}>Auction Platform / Administration</p>
           <h1>User & Role Management</h1>
-          <p className={styles.subtitle}>Assign application roles to authenticated users. Super Admin remains an Auth custom claim and cannot be granted from this screen.</p>
+          <p className={styles.subtitle}>Manage authenticated Firebase users and assign application roles. Super Admin remains an Auth custom claim and cannot be granted from this screen.</p>
         </div>
         <div className={styles.actions}><button onClick={() => router.push("/")}>Back</button></div>
       </header>
@@ -70,11 +70,11 @@ export default function UserManagementPage() {
               </select>
             </div>
           ))}
-          {users.length === 0 && <div className={styles.empty}>No user profiles exist yet. A profile is created automatically when an account signs in.</div>}
+          {users.length === 0 && <div className={styles.empty}>No authenticated users exist in this Firebase project.</div>}
         </div>
       </section>
 
-      <p className={styles.securityNote}>Security model: only the two existing Super Admin custom claims can access this screen. Assigning <b>Auction Admin</b> allows that user to create and manage auctions, while Super Admin remains non-client-writable.</p>
+      <p className={styles.securityNote}>User management is authorized server-side with the Super Admin Auth custom claim. Existing Firebase accounts are shown even if their Firestore profile document does not exist yet; those accounts default to Participant until a role is assigned.</p>
     </main>
   );
 }
