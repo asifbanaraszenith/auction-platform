@@ -71,7 +71,7 @@ export async function PATCH(request: Request) {
     if (!isSuperAdmin) return NextResponse.json({ error: "Only Super Admin can assign auction admins." }, { status: 403 });
     const body = await request.json();
     const auctionId = typeof body.auctionId === "string" ? body.auctionId.trim() : "";
-    const adminIds = Array.isArray(body.adminIds) ? [...new Set(body.adminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim()))] : null;
+    const adminIds = Array.isArray(body.adminIds) ? [...new Set(body.adminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0))] : null;
     if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
     if (!adminIds) return NextResponse.json({ error: "Admin selection is required." }, { status: 400 });
 
