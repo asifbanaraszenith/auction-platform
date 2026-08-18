@@ -23,7 +23,7 @@ async function authorize(request: Request) {
 
 function isValidLifecycleTransition(current: string, next: string, startAtMillis: number) {
   if (current === next) return true;
-  if (current === "created" && next === "live") return startAtMillis <= Date.now();
+  if (current === "created" && (next === "live" || next === "paused" || next === "ended")) return startAtMillis <= Date.now();
   if (current === "live" && next === "paused") return true;
   if (current === "paused" && next === "live") return true;
   if ((current === "live" || current === "paused") && next === "ended") return true;
