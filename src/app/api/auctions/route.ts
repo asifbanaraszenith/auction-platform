@@ -19,9 +19,7 @@ async function authorize(request: Request) {
 
   if (!isSuperAdmin) {
     const userSnapshot = await db.collection("users").doc(decoded.uid).get();
-    if (!userSnapshot.exists || userSnapshot.data()?.role !== "auctionAdmin") {
-      throw new Error("INSUFFICIENT_PERMISSIONS");
-    }
+    if (!userSnapshot.exists || userSnapshot.data()?.role !== "auctionAdmin") throw new Error("INSUFFICIENT_PERMISSIONS");
   }
 
   return { db, decoded, isSuperAdmin };
@@ -30,10 +28,9 @@ async function authorize(request: Request) {
 export async function GET(request: Request) {
   try {
     const { db, decoded, isSuperAdmin } = await authorize(request);
-    const query = isSuperAdmin
-      ? db.collection("auctions").orderBy("updatedAt", "desc")
-      : db.collection("auctions").where("adminIds", "array-contains", decoded.uid).orderBy("updatedAt", "desc");
-    const snapshot = await query.get();
+    const snapshot = isSuperAdmin
+      ? await db.collection("auctions").get()
+      : await db.collection("auctions").where("adminIds", "array-contains", decoded.uid).get();
 
     const auctions = snapshot.docs.map((document) => {
       const data = document.data();
@@ -47,10 +44,10 @@ export async function GET(request: Request) {
         startAtMillis: data.startAt instanceof Timestamp ? data.startAt.toMillis() : null,
         endAtMillis: data.endAt instanceof Timestamp ? data.endAt.toMillis() : null,
         settings: data.settings ?? {},
-        createdAtMillis: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now(),
-        updatedAtMillis: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : Date.now(),
+        createdAtMillis: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0,
+        updatedAtMillis: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : 0,
       };
-    });
+    }).sort((a, b) => b.updatedAtMillis - a.updatedAtMillis);
 
     return NextResponse.json({ auctions });
   } catch (error) {
