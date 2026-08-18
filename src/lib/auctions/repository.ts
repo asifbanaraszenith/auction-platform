@@ -4,7 +4,6 @@ import {
   doc,
   getDoc,
   Timestamp,
-  updateDoc,
   type DocumentData,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
@@ -89,10 +88,29 @@ export async function updateAuction(
   auctionId: string,
   changes: Partial<Omit<Auction, "id" | "createdAt" | "updatedAt">>,
 ): Promise<void> {
-  await updateDoc(doc(auctionsCollection(), auctionId), {
-    ...changes,
-    updatedAt: Timestamp.now(),
+  const user = getFirebaseAuth().currentUser;
+  if (!user) throw new Error("Authentication required.");
+
+  const token = await user.getIdToken(true);
+  const response = await fetch("/api/auctions", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      auctionId,
+      name: changes.name,
+      description: changes.description,
+      status: changes.status,
+      startAtMillis: changes.startAt?.toMillis() ?? null,
+      endAtMillis: changes.endAt?.toMillis() ?? null,
+      settings: changes.settings,
+    }),
   });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Unable to update auction.");
 }
 
 export async function deleteAuction(auctionId: string): Promise<void> {
