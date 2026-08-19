@@ -18,6 +18,39 @@ function getAuthErrorCode(error: unknown) {
   return "auth/unknown";
 }
 
+function getAuthErrorMessage(error: unknown, mode: "signin" | "signup") {
+  const code = getAuthErrorCode(error);
+
+  if (code === "auth/email-already-in-use") {
+    return "An account already exists for this email address. Switch to Sign in and use the existing account.";
+  }
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
+    return "The email or password is incorrect.";
+  }
+  if (code === "auth/user-not-found") {
+    return "No account exists for this email address. Create an account first.";
+  }
+  if (code === "auth/weak-password") {
+    return "Password must be at least 6 characters long.";
+  }
+  if (code === "auth/too-many-requests") {
+    return "Too many authentication attempts. Please wait a moment and try again.";
+  }
+
+  return mode === "signup" ? "Unable to create the account." : "Unable to sign in.";
+}
+
+async function initializeProfileWithoutBlockingAuth(user: Parameters<typeof ensureUserProfile>[0]) {
+  try {
+    await ensureUserProfile(user);
+  } catch (error) {
+    // Firebase Authentication has already succeeded at this point. Profile
+    // creation is a separate server-side concern and must never turn a
+    // successful sign-up/sign-in into a misleading authentication failure.
+    console.error("User profile initialization deferred", error);
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -39,12 +72,13 @@ export default function LoginPage() {
     try {
       const auth = getFirebaseAuth();
       const credential = mode === "signin"
-        ? await signInWithEmailAndPassword(auth, email, password)
-        : await createUserWithEmailAndPassword(auth, email, password);
-      await ensureUserProfile(credential.user);
+        ? await signInWithEmailAndPassword(auth, email.trim(), password)
+        : await createUserWithEmailAndPassword(auth, email.trim(), password);
+
+      await initializeProfileWithoutBlockingAuth(credential.user);
       router.replace("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed.");
+      setError(getAuthErrorMessage(err, mode));
     } finally {
       setBusy(false);
     }
@@ -58,7 +92,7 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       const credential = await signInWithPopup(getFirebaseAuth(), provider);
-      await ensureUserProfile(credential.user);
+      await initializeProfileWithoutBlockingAuth(credential.user);
       router.replace("/");
     } catch (err) {
       const code = getAuthErrorCode(err);
@@ -72,8 +106,10 @@ export default function LoginPage() {
         setError("Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.");
       } else if (code === "auth/popup-closed-by-user") {
         setError("The Google sign-in window was closed before authentication completed.");
+      } else if (code === "auth/account-exists-with-different-credential") {
+        setError("An account already exists with this email using a different sign-in method. Sign in with that method first.");
       } else {
-        setError(err instanceof Error ? err.message : "Google sign-in failed.");
+        setError("Google sign-in failed. Please try again.");
       }
     } finally {
       setBusy(false);
