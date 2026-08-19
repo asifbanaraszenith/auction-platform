@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
+import { AuctionDeleteGuard } from "@/components/auction-delete-guard";
 
 export const metadata: Metadata = {
   title: "Auction Platform",
@@ -11,7 +12,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <AuctionDeleteGuard />
+        </AuthProvider>
       </body>
     </html>
   );

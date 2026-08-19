@@ -1,6 +1,5 @@
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   Timestamp,
@@ -114,5 +113,19 @@ export async function updateAuction(
 }
 
 export async function deleteAuction(auctionId: string): Promise<void> {
-  await deleteDoc(doc(auctionsCollection(), auctionId));
+  const user = getFirebaseAuth().currentUser;
+  if (!user) throw new Error("Authentication required.");
+
+  const token = await user.getIdToken(true);
+  const response = await fetch("/api/auctions", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ auctionId }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Unable to delete auction.");
 }
