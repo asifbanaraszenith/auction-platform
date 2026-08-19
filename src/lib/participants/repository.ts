@@ -4,54 +4,19 @@ import type { User } from "firebase/auth";
 import { getFirebaseAuth, getFirebaseStorage } from "@/lib/firebase/client";
 import type { AuctionCategory, AuctionParticipant, Player } from "@/lib/auctions/types";
 
-async function token(user?: User) {
-  const current = user ?? getFirebaseAuth().currentUser;
-  if (!current) throw new Error("Authentication required.");
-  return current.getIdToken(true);
-}
+async function token(user?: User) { const current = user ?? getFirebaseAuth().currentUser; if (!current) throw new Error("Authentication required."); return current.getIdToken(true); }
+async function uploadPlayerPhoto(user: User, photo?: File | null) { if (!photo) return undefined; if (!photo.type.startsWith("image/")) throw new Error("Participant photo must be an image."); if (photo.size > 5 * 1024 * 1024) throw new Error("Participant photo must be 5 MB or smaller."); const storageRef = ref(getFirebaseStorage(), `players/${user.uid}/${crypto.randomUUID()}-${photo.name}`); const snapshot = await uploadBytes(storageRef, photo, { contentType: photo.type }); return getDownloadURL(snapshot.ref); }
 
-export async function listPlayers(user: User): Promise<Player[]> {
-  const response = await fetch("/api/players", { headers: { Authorization: `Bearer ${await token(user)}` }, cache: "no-store" });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "Unable to load participants.");
-  return (payload.players ?? []).map((item: Record<string, unknown>) => ({ id: String(item.id), displayName: String(item.displayName ?? ""), expertise: String(item.expertise ?? ""), photoUrl: typeof item.photoUrl === "string" ? item.photoUrl : undefined, createdBy: String(item.createdBy ?? ""), createdAt: Timestamp.fromMillis(Number(item.createdAtMillis)), updatedAt: Timestamp.fromMillis(Number(item.updatedAtMillis)) }));
-}
+export async function listPlayers(user: User): Promise<Player[]> { const response = await fetch("/api/players", { headers: { Authorization: `Bearer ${await token(user)}` }, cache: "no-store" }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to load participants."); return (payload.players ?? []).map((item: Record<string, unknown>) => ({ id: String(item.id), displayName: String(item.displayName ?? ""), expertise: String(item.expertise ?? ""), photoUrl: typeof item.photoUrl === "string" ? item.photoUrl : undefined, createdBy: String(item.createdBy ?? ""), createdAt: Timestamp.fromMillis(Number(item.createdAtMillis)), updatedAt: Timestamp.fromMillis(Number(item.updatedAtMillis)) })); }
 
-export async function createPlayer(user: User, input: { displayName: string; expertise: string; photo?: File | null }): Promise<Player> {
-  let photoUrl: string | undefined;
-  if (input.photo) {
-    if (!input.photo.type.startsWith("image/")) throw new Error("Participant photo must be an image.");
-    if (input.photo.size > 5 * 1024 * 1024) throw new Error("Participant photo must be 5 MB or smaller.");
-    const storageRef = ref(getFirebaseStorage(), `players/${user.uid}/${crypto.randomUUID()}-${input.photo.name}`);
-    const snapshot = await uploadBytes(storageRef, input.photo, { contentType: input.photo.type });
-    photoUrl = await getDownloadURL(snapshot.ref);
-  }
-  const response = await fetch("/api/players", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token(user)}` }, body: JSON.stringify({ displayName: input.displayName, expertise: input.expertise, photoUrl }) });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "Unable to create participant.");
-  return { id: payload.id, displayName: payload.displayName, expertise: payload.expertise ?? "", photoUrl: payload.photoUrl, createdBy: payload.createdBy, createdAt: Timestamp.fromMillis(payload.createdAtMillis), updatedAt: Timestamp.fromMillis(payload.updatedAtMillis) };
-}
+export async function createPlayer(user: User, input: { displayName: string; expertise: string; photo?: File | null }): Promise<Player> { const photoUrl = await uploadPlayerPhoto(user, input.photo); const response = await fetch("/api/players", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token(user)}` }, body: JSON.stringify({ displayName: input.displayName, expertise: input.expertise, photoUrl }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to create participant."); return { id: payload.id, displayName: payload.displayName, expertise: payload.expertise ?? "", photoUrl: payload.photoUrl, createdBy: payload.createdBy, createdAt: Timestamp.fromMillis(payload.createdAtMillis), updatedAt: Timestamp.fromMillis(payload.updatedAtMillis) }; }
 
-export async function listAuctionCategories(user: User, auctionId: string): Promise<AuctionCategory[]> {
-  const response = await fetch(`/api/auctions/${auctionId}/participants`, { headers: { Authorization: `Bearer ${await token(user)}` }, cache: "no-store" });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "Unable to load auction configuration.");
-  return (payload.categories ?? []).map((item: Record<string, unknown>) => ({ id: String(item.id), name: String(item.name ?? ""), defaultBasePrice: Number(item.defaultBasePrice ?? 0), minimumBasePrice: Number(item.minimumBasePrice ?? item.defaultBasePrice ?? 0), sortOrder: Number(item.sortOrder ?? 0), active: item.active !== false, createdAt: Timestamp.fromMillis(Number(item.createdAtMillis)), updatedAt: Timestamp.fromMillis(Number(item.updatedAtMillis)) }));
-}
+export async function createParticipantAccount(user: User, input: { name: string; email: string; expertise: string; photo?: File | null }) { const photoUrl = await uploadPlayerPhoto(user, input.photo); const response = await fetch("/api/players/accounts", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token(user)}` }, body: JSON.stringify({ name: input.name, email: input.email, expertise: input.expertise, photoUrl }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to create participant account."); return payload as { userId: string; playerId: string; temporaryPassword: string }; }
 
-export async function listAuctionParticipants(user: User, auctionId: string): Promise<AuctionParticipant[]> {
-  const response = await fetch(`/api/auctions/${auctionId}/participants`, { headers: { Authorization: `Bearer ${await token(user)}` }, cache: "no-store" });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "Unable to load auction participants.");
-  return (payload.participants ?? []).map((item: Record<string, unknown>) => ({ id: String(item.id), playerId: String(item.playerId), playerName: String(item.playerName ?? ""), categoryId: String(item.categoryId), categoryName: String(item.categoryName ?? ""), basePrice: Number(item.basePrice ?? 0), minimumBasePrice: Number(item.minimumBasePrice ?? 0), status: item.status, createdAt: Timestamp.fromMillis(Number(item.createdAtMillis)), updatedAt: Timestamp.fromMillis(Number(item.updatedAtMillis)) })) as AuctionParticipant[];
-}
+export async function listAuctionCategories(user: User, auctionId: string): Promise<AuctionCategory[]> { const response = await fetch(`/api/auctions/${auctionId}/participants`, { headers: { Authorization: `Bearer ${await token(user)}` }, cache: "no-store" }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to load auction configuration."); return (payload.categories ?? []).map((item: Record<string, unknown>) => ({ id: String(item.id), name: String(item.name ?? ""), defaultBasePrice: Number(item.defaultBasePrice ?? 0), minimumBasePrice: Number(item.minimumBasePrice ?? item.defaultBasePrice ?? 0), sortOrder: Number(item.sortOrder ?? 0), active: item.active !== false, createdAt: Timestamp.fromMillis(Number(item.createdAtMillis)), updatedAt: Timestamp.fromMillis(Number(item.updatedAtMillis)) })); }
 
-export async function createAuctionCategory(user: User, auctionId: string, input: { name: string; defaultBasePrice: number; minimumBasePrice: number }): Promise<void> {
-  const response = await fetch(`/api/auctions/${auctionId}/participants`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token(user)}` }, body: JSON.stringify({ type: "category", ...input }) });
-  const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to create category.");
-}
+export async function listAuctionParticipants(user: User, auctionId: string): Promise<AuctionParticipant[]> { const response = await fetch(`/api/auctions/${auctionId}/participants`, { headers: { Authorization: `Bearer ${await token(user)}` }, cache: "no-store" }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to load auction participants."); return (payload.participants ?? []).map((item: Record<string, unknown>) => ({ id: String(item.id), playerId: String(item.playerId), playerName: String(item.playerName ?? ""), categoryId: String(item.categoryId), categoryName: String(item.categoryName ?? ""), basePrice: Number(item.basePrice ?? 0), minimumBasePrice: Number(item.minimumBasePrice ?? 0), status: item.status, createdAt: Timestamp.fromMillis(Number(item.createdAtMillis)), updatedAt: Timestamp.fromMillis(Number(item.updatedAtMillis)) })) as AuctionParticipant[]; }
 
-export async function registerAuctionParticipant(user: User, auctionId: string, input: { playerId: string; categoryId: string }): Promise<void> {
-  const response = await fetch(`/api/auctions/${auctionId}/participants`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token(user)}` }, body: JSON.stringify({ type: "participant", ...input }) });
-  const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to add participant to auction.");
-}
+export async function createAuctionCategory(user: User, auctionId: string, input: { name: string; defaultBasePrice: number; minimumBasePrice: number }): Promise<void> { const response = await fetch(`/api/auctions/${auctionId}/participants`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token(user)}` }, body: JSON.stringify({ type: "category", ...input }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to create category."); }
+
+export async function registerAuctionParticipant(user: User, auctionId: string, input: { playerId: string; categoryId: string }): Promise<void> { const response = await fetch(`/api/auctions/${auctionId}/participants`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token(user)}` }, body: JSON.stringify({ type: "participant", ...input }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || "Unable to add participant to auction."); }
