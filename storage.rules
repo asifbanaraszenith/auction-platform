@@ -3,13 +3,19 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null; }
+    function own(uid) { return signedIn() && request.auth.uid == uid; }
+    function validImage() { return request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/.*'); }
 
     match /players/{userId}/{fileName} {
       allow read: if signedIn();
-      allow write: if signedIn() && request.auth.uid == userId
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
-      allow delete: if signedIn() && request.auth.uid == userId;
+      allow write: if own(userId) && validImage();
+      allow delete: if own(userId);
+    }
+
+    match /users/{userId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if own(userId) && validImage();
+      allow delete: if own(userId);
     }
 
     match /{allPaths=**} { allow read, write: if false; }
