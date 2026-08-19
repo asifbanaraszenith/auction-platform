@@ -1,1 +1,0 @@
-Phase 4 completion note: universal account/profile management, participant accounts, participant portal, auction-scoped participant configuration, and security rules are implemented on development/phase-04. This file can be removed after merge if desired.
