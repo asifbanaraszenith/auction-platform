@@ -3,35 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
-import { addAuctionBidder, listAuctionBidders, removeAuctionBidder, updateAuctionBidder, type AvailableBidder } from "@/lib/auctions/bidders";
+import { addAuctionBidder, listAuctionBidders, removeAuctionBidder, type AvailableBidder } from "@/lib/auctions/bidders";
 import type { AuctionBidder } from "@/lib/auctions/types";
 import styles from "../../auctions.module.css";
-
-type Props = { bidder: AuctionBidder };
-
-function BidderRow({ bidder, onRefresh }: Props & { onRefresh: () => Promise<void> }) {
-  const { user } = useAuth();
-  const [purse, setPurse] = useState(String(bidder.initialPurse));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function save() {
-    if (!user) return;
-    const value = Number(purse);
-    if (!Number.isFinite(value) || value < 0) { setError("Purse must be a non-negative number."); return; }
-    setBusy(true); setError("");
-    try { await updateAuctionBidder(user, "", bidder.id, { initialPurse: value }); }
-    catch { /* parent route supplies the actual auction id through a separate handler */ }
-    finally { setBusy(false); }
-  }
-
-  void save;
-  void onRefresh;
-  return <div className={styles.configRow}>
-    <div><strong>{bidder.displayName}</strong><small>{bidder.status === "active" ? "Active bidder" : "Inactive bidder"}</small></div>
-    <div className={styles.participantMeta}><span>{bidder.initialPurse} points</span><small>Initial purse</small></div>
-  </div>;
-}
 
 export default function AuctionBiddersPage() {
   const { user, loading } = useAuth();
@@ -48,19 +22,28 @@ export default function AuctionBiddersPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    try { const result = await listAuctionBidders(user, auctionId); setBidders(result.bidders); setAvailable(result.availableUsers); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to load bidders."); }
+    try {
+      const result = await listAuctionBidders(user, auctionId);
+      setBidders(result.bidders);
+      setAvailable(result.availableUsers);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load bidders.");
+    }
   }, [user, auctionId]);
 
-  useEffect(() => { if (!loading && user) void load(); }, [loading, user, load]);
+  useEffect(() => {
+    if (!loading && user) void load();
+  }, [loading, user, load]);
 
   async function add() {
     if (!user || !userId) { setError("Select a registered bidder."); return; }
     const value = Number(purse);
     if (!Number.isFinite(value) || value < 0) { setError("Initial purse must be a non-negative number."); return; }
     setBusy(true); setError("");
-    try { await addAuctionBidder(user, auctionId, { userId, initialPurse: value }); setUserId(""); setPurse(""); await load(); setNotice("Bidder added to this auction."); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to add bidder."); }
+    try {
+      await addAuctionBidder(user, auctionId, { userId, initialPurse: value });
+      setUserId(""); setPurse(""); await load(); setNotice("Bidder added to this auction.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Unable to add bidder."); }
     finally { setBusy(false); }
   }
 
