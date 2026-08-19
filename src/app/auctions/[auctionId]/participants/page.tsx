@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { createAuctionCategory, createPlayer, listAuctionCategories, listAuctionParticipants, listPlayers, registerAuctionParticipant } from "@/lib/participants/repository";
 import type { AuctionCategory, AuctionParticipant, Player } from "@/lib/auctions/types";
-import styles from "../../auctions/auctions.module.css";
+import styles from "../../auctions.module.css";
 
 export default function AuctionParticipantsPage() {
   const { user, loading } = useAuth(); const router = useRouter(); const params = useParams<{ auctionId: string }>(); const auctionId = params.auctionId;
