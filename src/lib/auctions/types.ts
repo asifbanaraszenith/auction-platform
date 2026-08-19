@@ -11,11 +11,10 @@ export type AuctionSettings = { mode: AuctionMode; points: string; timezone: str
 export type Auction = { id: string; name: string; description: string; ownerId: string; adminIds: string[]; status: AuctionStatus; startAt: Timestamp | null; endAt: Timestamp | null; settings: AuctionSettings; createdAt: Timestamp; updatedAt: Timestamp };
 export type CreateAuctionInput = Omit<Auction, "id" | "createdAt" | "updatedAt">;
 
-/** Global player identity. It intentionally contains no auction-specific classification. */
-export type Player = { id: string; displayName: string; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp };
-/** A category belongs to one auction and can therefore differ between sports/leagues. */
-export type AuctionCategory = { id: string; name: string; defaultBasePrice: number; sortOrder: number; active: boolean; createdAt: Timestamp; updatedAt: Timestamp };
-/** The player's classification and effective base price for one auction. */
-export type AuctionParticipant = { id: string; playerId: string; playerName: string; categoryId: string; categoryName: string; basePrice: number; status: "eligible" | "withdrawn" | "sold" | "unsold" | "reserved"; createdAt: Timestamp; updatedAt: Timestamp };
-/** Auction-specific bidder/team purse. Spend and remaining balance will be derived by the auction engine. */
+/** Global participant identity/profile. Auction classification is never stored here. */
+export type Player = { id: string; displayName: string; expertise: string; photoUrl?: string; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp };
+/** Categories belong to one auction and define the base-price rules for that auction. */
+export type AuctionCategory = { id: string; name: string; defaultBasePrice: number; minimumBasePrice: number; sortOrder: number; active: boolean; createdAt: Timestamp; updatedAt: Timestamp };
+/** A participant registered in one auction. Category/base-price rules come from the auction category. */
+export type AuctionParticipant = { id: string; playerId: string; playerName: string; categoryId: string; categoryName: string; basePrice: number; minimumBasePrice: number; status: "eligible" | "withdrawn" | "sold" | "unsold" | "reserved"; createdAt: Timestamp; updatedAt: Timestamp };
 export type AuctionBidder = { id: string; userId: string; displayName: string; initialPurse: number; status: "active" | "inactive"; createdAt: Timestamp; updatedAt: Timestamp };
