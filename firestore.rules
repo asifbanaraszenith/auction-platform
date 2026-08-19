@@ -2,120 +2,56 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function superAdmin() {
-      return signedIn() && request.auth.token.superAdmin == true;
-    }
-
-    function auctionAdminUser() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'auctionAdmin';
-    }
-
-    function auctionExists(auctionId) {
-      return exists(/databases/$(database)/documents/auctions/$(auctionId));
-    }
-
-    function auctionAdmin(auctionId) {
-      return signedIn()
-        && auctionExists(auctionId)
-        && request.auth.uid in get(/databases/$(database)/documents/auctions/$(auctionId)).data.adminIds;
-    }
-
-    function canManageAuction(auctionId) {
-      return superAdmin() || auctionAdmin(auctionId);
-    }
-
-    function canCreateAuction() {
-      return superAdmin() || auctionAdminUser();
-    }
-
-    function immutableAuctionAdminFields() {
-      return request.resource.data.adminIds == resource.data.adminIds
-        && request.resource.data.ownerId == resource.data.ownerId;
-    }
-
-    function validInitialAuction() {
-      return request.resource.data.status == 'created'
-        && request.resource.data.startAt != null
-        && request.resource.data.startAt > request.time;
-    }
-
+    function signedIn() { return request.auth != null; }
+    function superAdmin() { return signedIn() && request.auth.token.superAdmin == true; }
+    function auctionAdminUser() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'auctionAdmin'; }
+    function auctionExists(auctionId) { return exists(/databases/$(database)/documents/auctions/$(auctionId)); }
+    function auctionAdmin(auctionId) { return signedIn() && auctionExists(auctionId) && request.auth.uid in get(/databases/$(database)/documents/auctions/$(auctionId)).data.adminIds; }
+    function canManageAuction(auctionId) { return superAdmin() || auctionAdmin(auctionId); }
+    function canCreateAuction() { return superAdmin() || auctionAdminUser(); }
+    function immutableAuctionAdminFields() { return request.resource.data.adminIds == resource.data.adminIds && request.resource.data.ownerId == resource.data.ownerId; }
+    function validInitialAuction() { return request.resource.data.status == 'created' && request.resource.data.startAt != null && request.resource.data.startAt > request.time; }
     function validLifecycleUpdate() {
       return request.resource.data.status == resource.data.status
-        || (resource.data.status == 'created'
-          && request.resource.data.status == 'live'
-          && request.resource.data.startAt != null
-          && request.resource.data.startAt <= request.time)
-        || (resource.data.status == 'live'
-          && request.resource.data.status == 'paused')
-        || (resource.data.status == 'paused'
-          && request.resource.data.status == 'live')
-        || ((resource.data.status == 'live' || resource.data.status == 'paused')
-          && request.resource.data.status == 'ended')
-        || (resource.data.status == 'ended'
-          && request.resource.data.status == 'archived');
+        || (resource.data.status == 'created' && request.resource.data.status == 'live' && request.resource.data.startAt != null && request.resource.data.startAt <= request.time)
+        || (resource.data.status == 'live' && request.resource.data.status == 'paused')
+        || (resource.data.status == 'paused' && request.resource.data.status == 'live')
+        || ((resource.data.status == 'live' || resource.data.status == 'paused') && request.resource.data.status == 'ended')
+        || (resource.data.status == 'ended' && request.resource.data.status == 'archived');
     }
-
     function validUnchangedStatusSchedule() {
-      return request.resource.data.status == 'created'
-        ? request.resource.data.startAt != null && request.resource.data.startAt > request.time
-        : request.resource.data.status == 'live'
-          ? request.resource.data.startAt != null && request.resource.data.startAt <= request.time
-          : request.resource.data.status == 'paused'
-            ? request.resource.data.startAt != null && request.resource.data.startAt <= request.time
-            : true;
+      return request.resource.data.status == 'created' ? request.resource.data.startAt != null && request.resource.data.startAt > request.time
+        : request.resource.data.status == 'live' ? request.resource.data.startAt != null && request.resource.data.startAt <= request.time
+        : request.resource.data.status == 'paused' ? request.resource.data.startAt != null && request.resource.data.startAt <= request.time : true;
     }
 
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || superAdmin());
+      allow create: if signedIn() && request.auth.uid == userId && request.resource.data.role in ['auctionAdmin', 'participant', 'bidder'];
+      allow update: if superAdmin() || (signedIn() && request.auth.uid == userId && request.resource.data.role == resource.data.role);
+      allow delete: if superAdmin();
+    }
 
-      // Super Admin is an Auth custom claim and is never client-writable.
-      allow create: if signedIn()
-        && request.auth.uid == userId
-        && request.resource.data.role in ['auctionAdmin', 'participant', 'bidder'];
-
-      allow update: if superAdmin()
-        || (signedIn()
-          && request.auth.uid == userId
-          && request.resource.data.role == resource.data.role);
-
+    // Global player identity only; never store auction classification here.
+    match /players/{playerId} {
+      allow read, create, update: if superAdmin() || auctionAdminUser();
       allow delete: if superAdmin();
     }
 
     match /auctions/{auctionId} {
       allow get, list: if superAdmin() || auctionAdmin(auctionId);
-
-      // Super Admins and explicitly assigned Auction Admin users can create.
-      // Every new auction starts in the non-privileged CREATED state and must
-      // have a future start time. LIVE/PAUSED/ENDED are lifecycle transitions.
-      allow create: if canCreateAuction()
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.adminIds is list
-        && request.auth.uid in request.resource.data.adminIds
-        && validInitialAuction();
-
-      allow update: if canManageAuction(auctionId)
-        && (superAdmin() || immutableAuctionAdminFields())
-        && validLifecycleUpdate()
-        && (request.resource.data.status != resource.data.status || validUnchangedStatusSchedule());
-
+      allow create: if canCreateAuction() && request.resource.data.ownerId == request.auth.uid && request.resource.data.adminIds is list && request.auth.uid in request.resource.data.adminIds && validInitialAuction();
+      allow update: if canManageAuction(auctionId) && (superAdmin() || immutableAuctionAdminFields()) && validLifecycleUpdate() && (request.resource.data.status != resource.data.status || validUnchangedStatusSchedule());
       allow delete: if superAdmin();
 
-      match /auditLogs/{logId} {
-        allow read: if canManageAuction(auctionId);
-        allow create: if canManageAuction(auctionId)
-          && request.resource.data.actorId == request.auth.uid;
-        allow update, delete: if false;
-      }
+      match /categories/{categoryId} { allow read, create, update: if canManageAuction(auctionId); allow delete: if superAdmin() || auctionAdmin(auctionId); }
+      match /participants/{participantId} { allow read, create, update, delete: if canManageAuction(auctionId); }
+      // Initial purse belongs to this auction. Remaining purse/spend must be
+      // derived by the bidding engine rather than trusted from a client write.
+      match /bidders/{bidderId} { allow read, create, update, delete: if canManageAuction(auctionId); }
+      match /auditLogs/{logId} { allow read: if canManageAuction(auctionId); allow create: if canManageAuction(auctionId) && request.resource.data.actorId == request.auth.uid; allow update, delete: if false; }
     }
 
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }
