@@ -32,7 +32,10 @@ export default function AuctionBiddersPage() {
   }, [user, auctionId]);
 
   useEffect(() => {
-    if (!loading && user) void load();
+    if (!loading && user) {
+      const timer = window.setTimeout(() => void load(), 0);
+      return () => window.clearTimeout(timer);
+    }
   }, [loading, user, load]);
 
   async function add() {
@@ -40,10 +43,8 @@ export default function AuctionBiddersPage() {
     const value = Number(purse);
     if (!Number.isFinite(value) || value < 0) { setError("Initial purse must be a non-negative number."); return; }
     setBusy(true); setError("");
-    try {
-      await addAuctionBidder(user, auctionId, { userId, initialPurse: value });
-      setUserId(""); setPurse(""); await load(); setNotice("Bidder added to this auction.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Unable to add bidder."); }
+    try { await addAuctionBidder(user, auctionId, { userId, initialPurse: value }); setUserId(""); setPurse(""); await load(); setNotice("Bidder added to this auction."); }
+    catch (e) { setError(e instanceof Error ? e.message : "Unable to add bidder."); }
     finally { setBusy(false); }
   }
 
@@ -57,24 +58,13 @@ export default function AuctionBiddersPage() {
 
   if (loading || !user) return <main className={styles.loading}>Loading bidders…</main>;
   return <main className={styles.shell}>
-    <header className={styles.header}>
-      <div><p className={styles.eyebrow}>Auction Platform / Auction Setup</p><h1>Bidder Purses</h1><p className={styles.subtitle}>Assign registered bidder accounts to this auction and define their auction-specific starting purse in points.</p></div>
-      <div className={styles.headerActions}><button className={styles.secondaryButton} onClick={() => router.push("/auctions")}>Back</button></div>
-    </header>
+    <header className={styles.header}><div><p className={styles.eyebrow}>Auction Platform / Auction Setup</p><h1>Bidder Purses</h1><p className={styles.subtitle}>Assign registered bidder accounts to this auction and define their auction-specific starting purse in points.</p></div><div className={styles.headerActions}><button className={styles.secondaryButton} onClick={() => router.push("/auctions")}>Back</button></div></header>
     <section className={styles.editor}>
       {error && <div className={styles.error} role="alert">{error}</div>}{notice && <div className={styles.notice} role="status">{notice}</div>}
-      <section className={styles.configSection}>
-        <div className={styles.configHeader}><div><p className={styles.eyebrow}>Auction setup</p><h2>Bidder / Team Purses</h2><p>The purse belongs to this auction assignment. It is not stored on the global user or participant profile.</p></div></div>
-        <div className={styles.formGrid} style={{ marginTop: 20 }}>
-          <label>BIDDER ACCOUNT<select value={userId} onChange={(e) => setUserId(e.target.value)}><option value="">Select registered bidder</option>{available.map((item) => <option key={item.userId} value={item.userId}>{item.displayName}{item.email ? ` — ${item.email}` : ""}</option>)}</select></label>
-          <label>INITIAL PURSE<input type="number" min="0" step="1" value={purse} onChange={(e) => setPurse(e.target.value)} placeholder="1000" /></label>
-          <div style={{ display: "flex", alignItems: "end" }}><button className={styles.primaryButton} style={{ width: "100%" }} onClick={add} disabled={busy || !userId}>{busy ? "ADDING…" : "ADD BIDDER"}</button></div>
-        </div>
+      <section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Auction setup</p><h2>Bidder / Team Purses</h2><p>The purse belongs to this auction assignment. It is not stored on the global user or participant profile.</p></div></div>
+        <div className={styles.formGrid} style={{ marginTop: 20 }}><label>BIDDER ACCOUNT<select value={userId} onChange={(e) => setUserId(e.target.value)}><option value="">Select registered bidder</option>{available.map((item) => <option key={item.userId} value={item.userId}>{item.displayName}{item.email ? ` — ${item.email}` : ""}</option>)}</select></label><label>INITIAL PURSE<input type="number" min="0" step="1" value={purse} onChange={(e) => setPurse(e.target.value)} placeholder="1000" /></label><div style={{ display: "flex", alignItems: "end" }}><button className={styles.primaryButton} style={{ width: "100%" }} onClick={add} disabled={busy || !userId}>{busy ? "ADDING…" : "ADD BIDDER"}</button></div></div>
       </section>
-      <section className={styles.configSection}>
-        <div className={styles.configHeader}><div><p className={styles.eyebrow}>Registered in this auction</p><h2>Bidders</h2></div></div>
-        {bidders.length === 0 ? <div className={styles.empty}>No bidders assigned to this auction yet.</div> : <div className={styles.configList}>{bidders.map((bidder) => <div key={bidder.id} className={styles.configRow}><div><strong>{bidder.displayName}</strong><small>{bidder.status === "active" ? "Active" : "Inactive"} · Initial purse: {bidder.initialPurse} points</small></div><button className={styles.dangerButton} onClick={() => void remove(bidder)} disabled={busy}>REMOVE</button></div>)}</div>}
-      </section>
+      <section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Registered in this auction</p><h2>Bidders</h2></div></div>{bidders.length === 0 ? <div className={styles.empty}>No bidders assigned to this auction yet.</div> : <div className={styles.configList}>{bidders.map((bidder) => <div key={bidder.id} className={styles.configRow}><div><strong>{bidder.displayName}</strong><small>{bidder.status === "active" ? "Active" : "Inactive"} · Initial purse: {bidder.initialPurse} points</small></div><button className={styles.dangerButton} onClick={() => void remove(bidder)} disabled={busy}>REMOVE</button></div>)}</div>}</section>
     </section>
   </main>;
 }
