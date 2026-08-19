@@ -141,3 +141,26 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unable to assign auction admins." }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { db, isSuperAdmin } = await authorize(request);
+    if (!isSuperAdmin) return NextResponse.json({ error: "Only Super Admin can delete auctions." }, { status: 403 });
+    const body = await request.json().catch(() => ({}));
+    const auctionId = typeof body.auctionId === "string" ? body.auctionId.trim() : "";
+    if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
+
+    const reference = db.collection("auctions").doc(auctionId);
+    const snapshot = await reference.get();
+    if (!snapshot.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
+
+    await db.recursiveDelete(reference);
+    return NextResponse.json({ auctionId, deleted: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to delete auction.";
+    if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Only Super Admin can delete auctions." }, { status: 403 });
+    console.error("Auction deletion failed", error);
+    return NextResponse.json({ error: "Unable to delete auction." }, { status: 500 });
+  }
+}
