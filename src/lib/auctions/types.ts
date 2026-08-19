@@ -63,3 +63,36 @@ export type Auction = {
 };
 
 export type CreateAuctionInput = Omit<Auction, "id" | "createdAt" | "updatedAt">;
+
+/** Global participant identity. Auction-specific classification never lives here. */
+export type Player = {
+  id: string;
+  displayName: string;
+  createdBy: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
+/** Category is owned by one auction and may be different for every auction. */
+export type AuctionCategory = {
+  id: string;
+  name: string;
+  defaultBasePrice: number;
+  sortOrder: number;
+  active: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
+/** Registration/configuration of a global player inside one auction. */
+export type AuctionParticipant = {
+  id: string;
+  playerId: string;
+  playerName: string;
+  categoryId: string;
+  categoryName: string;
+  basePrice: number;
+  status: "eligible" | "withdrawn" | "sold" | "unsold" | "reserved";
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
