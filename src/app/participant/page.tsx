@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import styles from "./participant.module.css";
