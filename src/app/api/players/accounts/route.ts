@@ -20,18 +20,17 @@ export async function POST(request: Request) {
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    const expertise = typeof body.expertise === "string" ? body.expertise.trim() : "";
     const photoUrl = typeof body.photoUrl === "string" && body.photoUrl.trim() ? body.photoUrl.trim() : null;
     const temporaryPassword = "123456";
-    if (!name || !email || !expertise) return NextResponse.json({ error: "Name, email and expertise are required." }, { status: 400 });
+    if (!name || !email) return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
     if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
     let authUser;
     try { authUser = await auth.createUser({ email, password: temporaryPassword, displayName: name, photoURL: photoUrl }); }
     catch (error) { const code = error instanceof Error ? error.message : ""; if (code.includes("email-already-exists")) return NextResponse.json({ error: "An account already exists for this email address." }, { status: 409 }); throw error; }
     const now = Timestamp.now();
     try {
-      await db.collection("users").doc(authUser.uid).set({ displayName: name, email, expertise, photoUrl, role: "participant", mustChangePassword: true, createdBy: uid, createdAt: now, updatedAt: now }, { merge: true });
-      const playerRef = await db.collection("players").add({ displayName: name, expertise, photoUrl, userId: authUser.uid, createdBy: uid, createdAt: now, updatedAt: now });
+      await db.collection("users").doc(authUser.uid).set({ displayName: name, email, photoUrl, role: "participant", mustChangePassword: true, createdBy: uid, createdAt: now, updatedAt: now }, { merge: true });
+      const playerRef = await db.collection("players").add({ displayName: name, photoUrl, userId: authUser.uid, createdBy: uid, createdAt: now, updatedAt: now });
       return NextResponse.json({ userId: authUser.uid, playerId: playerRef.id, temporaryPassword }, { status: 201 });
     } catch (error) { await auth.deleteUser(authUser.uid).catch(() => undefined); throw error; }
   } catch (error) { return fail(error, "Unable to create participant account."); }
