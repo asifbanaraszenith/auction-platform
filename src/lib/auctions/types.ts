@@ -12,7 +12,7 @@ export type Auction = { id: string; name: string; description: string; ownerId: 
 export type CreateAuctionInput = Omit<Auction, "id" | "createdAt" | "updatedAt">;
 
 /** Global participant identity/profile. Auction classification is never stored here. */
-export type Player = { id: string; displayName: string; expertise: string; photoUrl?: string; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp };
+export type Player = { id: string; displayName: string; photoUrl?: string; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp };
 /** Categories belong to one auction and define the base-price rules for that auction. */
 export type AuctionCategory = { id: string; name: string; defaultBasePrice: number; minimumBasePrice: number; sortOrder: number; active: boolean; createdAt: Timestamp; updatedAt: Timestamp };
 /** A participant registered in one auction. Category/base-price rules come from the auction category. */
