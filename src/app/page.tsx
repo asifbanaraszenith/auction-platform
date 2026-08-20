@@ -8,8 +8,8 @@ import { MobileNavigation } from "@/components/mobile-navigation";
 import { useRouter } from "next/navigation";
 
 const featureCards = [
-  { title: "Auctions", description: "Create, configure, schedule and manage league auctions.", icon: "gavel", href: "/auctions" },
-  { title: "Participants", description: "Register and manage players, agents, and other participants.", icon: "people", href: "/participant" },
+  { title: "Auctions", description: "Create, configure, schedule and manage league auctions.", icon: "gavel", href: "/auctions", adminOnly: true },
+  { title: "Participants", description: "Register and manage players, agents, and other participants.", icon: "people", href: "/participant", participantAccess: true },
   { title: "Teams", description: "Configure teams, rosters, and auction participation.", icon: "shield" },
   { title: "Bidding", description: "Run the real-time bidding experience for live auctions.", icon: "gavel" },
   { title: "Purse validation", description: "Validate budgets, spending rules, and purse management.", icon: "document" },
@@ -27,20 +27,29 @@ function GavelIllustration() {
 }
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
   const router = useRouter();
+  const canManageAuctions = roles.includes("superAdmin") || roles.includes("auctionAdmin");
+  const canAccessParticipantPortal = canManageAuctions || roles.includes("participant");
 
   async function handleSignOut() {
     await signOut(getFirebaseAuth());
     router.replace("/login");
   }
 
+  const visibleFeatureCards = featureCards.filter((feature) => {
+    if (!user) return !feature.adminOnly && !feature.participantAccess;
+    if (feature.adminOnly) return canManageAuctions;
+    if (feature.participantAccess) return canAccessParticipantPortal;
+    return false;
+  });
+
   return (
     <main className="home-shell">
       <header className="site-header">
         <Link className="brand" href="/" aria-label="Auction Platform home"><span className="brand-mark">AP</span><span className="brand-name"><strong>AUCTION</strong><strong>PLATFORM</strong></span></Link>
-        <nav className="site-nav" aria-label="Primary navigation"><Link className="active" href="/">Home</Link>{user ? <Link href="/auctions">Auctions</Link> : <span>Auctions</span>}</nav>
-        <MobileNavigation authenticated={Boolean(user)} displayName={user?.displayName} email={user?.email} onSignOut={() => void handleSignOut()} />
+        <nav className="site-nav" aria-label="Primary navigation"><Link className="active" href="/">Home</Link>{user && canManageAuctions ? <Link href="/auctions">Auctions</Link> : <span>Auctions</span>}</nav>
+        <MobileNavigation authenticated={Boolean(user)} roles={roles} displayName={user?.displayName} email={user?.email} onSignOut={() => void handleSignOut()} />
       </header>
 
       <section className="hero-section">
@@ -49,7 +58,7 @@ export default function HomePage() {
 
           <section className="feature-section" aria-label="Platform actions" style={{ maxWidth: "none", margin: "28px 0 0", padding: 0 }}>
             <div className="feature-grid" style={{ gridTemplateColumns: "1fr", padding: 0, border: 0, gap: 12 }}>
-              {featureCards.map((feature) => {
+              {visibleFeatureCards.map((feature) => {
                 const action = feature.href ? <Link className="coming-soon" href={user ? feature.href : "/login"} style={{ marginTop: 0, whiteSpace: "nowrap" }}>{user ? "Open" : "Sign in"} <b>→</b></Link> : <span className="coming-soon" style={{ marginTop: 0, whiteSpace: "nowrap" }}>Coming soon <b>→</b></span>;
                 return <article className={`feature-card${feature.href ? " feature-card-active" : ""}`} key={feature.title} style={{ minHeight: 118, padding: "18px 20px", display: "grid", gridTemplateColumns: "64px minmax(0, 1fr) auto", alignItems: "center", gap: 18, textAlign: "left" }}><div className="feature-icon" style={{ width: 64, height: 64, marginBottom: 0 }}><FeatureIcon name={feature.icon} /></div><div><h2 style={{ marginBottom: 6 }}>{feature.title}</h2><p style={{ maxWidth: 620 }}>{feature.description}</p></div>{action}</article>;
               })}
