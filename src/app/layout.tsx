@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./phase4-mobile.css";
 import { AuthProvider } from "@/components/auth-provider";
 import { AuctionDeleteGuard } from "@/components/auction-delete-guard";
 
