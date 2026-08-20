@@ -15,17 +15,20 @@ async function authorize(request: Request) {
 export async function GET(request: Request) {
   try {
     const { db, auth } = await authorize(request);
-    const snapshot = await db.collection("users").where("role", "==", "auctionAdmin").get();
+    const snapshot = await db.collection("users").get();
     const users = (await Promise.all(snapshot.docs.map(async (item) => {
       const data = item.data();
-      try { const account = await auth.getUser(item.id); if (account.customClaims?.superAdmin === true) return null; } catch { /* orphaned profile; keep it available for assignment */ }
-      return { uid: item.id, email: String(data.email ?? ""), displayName: String(data.displayName ?? "") };
+      try {
+        const account = await auth.getUser(item.id);
+        if (account.customClaims?.superAdmin === true) return null;
+        return { uid: item.id, email: String(account.email ?? data.email ?? ""), displayName: String(account.displayName ?? data.displayName ?? data.name ?? "") };
+      } catch { return null; }
     }))).filter((item): item is { uid: string; email: string; displayName: string } => item !== null).sort((a, b) => (a.displayName || a.email).localeCompare(b.displayName || b.email));
     return NextResponse.json({ users });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to load auction admins.";
+    const message = error instanceof Error ? error.message : "Unable to load registered users.";
     if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Only Super Admin can assign auction admins." }, { status: 403 });
-    console.error("Auction admin listing failed", error); return NextResponse.json({ error: "Unable to load auction admins." }, { status: 500 });
+    console.error("Auction admin candidate listing failed", error); return NextResponse.json({ error: "Unable to load registered users." }, { status: 500 });
   }
 }
