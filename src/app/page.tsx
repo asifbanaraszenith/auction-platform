@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 
 const featureCards = [
   { title: "Auctions", description: "Create, configure, schedule and manage league auctions.", icon: "gavel", href: "/auctions" },
-  { title: "Participants", description: "Register and manage players, agents, and other participants.", icon: "people" },
+  { title: "Participants", description: "Register and manage players, agents, and other participants.", icon: "people", href: "/participant" },
   { title: "Teams", description: "Configure teams, rosters, and auction participation.", icon: "shield" },
   { title: "Bidding", description: "Run the real-time bidding experience for live auctions.", icon: "gavel" },
   { title: "Purse validation", description: "Validate budgets, spending rules, and purse management.", icon: "document" },
@@ -45,7 +45,7 @@ export default function HomePage() {
 
       <section className="hero-section">
         <div className="hero-content-stack">
-          <div className="hero-copy"><p className="section-kicker">Auction Platform</p><h1>Configurable auction<br className="desktop-break" /> platform for leagues</h1><span className="gold-rule" aria-hidden="true" /><p className="hero-description">Phase 3 establishes secure auction management, lifecycle controls, responsive administration, and auction-level visual configuration.</p><Link className="hero-cta" href={user ? "/auctions" : "/login"}><span>{user ? "Manage auctions" : "Open authentication"}</span><span aria-hidden="true">→</span></Link></div>
+          <div className="hero-copy"><p className="section-kicker">Auction Platform</p><h1>Configurable auction<br className="desktop-break" /> platform for leagues</h1><span className="gold-rule" aria-hidden="true" /><p className="hero-description">Phase 4 provides auction preparation, participant management, role-based access, and account management.</p></div>
 
           <section className="feature-section" aria-label="Platform actions" style={{ maxWidth: "none", margin: "28px 0 0", padding: 0 }}>
             <div className="feature-grid" style={{ gridTemplateColumns: "1fr", padding: 0, border: 0, gap: 12 }}>
