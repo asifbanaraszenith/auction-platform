@@ -12,9 +12,8 @@ export function MobileNavigation({ authenticated, displayName, email, onSignOut 
       {authenticated ? <div className={styles.accountSection}><span className={styles.accountAvatar} aria-hidden="true">{(displayName ?? email ?? "A").charAt(0).toUpperCase()}</span><div className={styles.accountDetails}><strong>{displayName ?? "Auction Member"}</strong><small>{email ?? "Authenticated account"}</small></div></div> : null}
       {authenticated ? <Link href="/auctions" onClick={() => setOpen(false)}>Auctions</Link> : <Link href="/login" onClick={() => setOpen(false)}>Sign in</Link>}
       {authenticated ? <Link href="/participant" onClick={() => setOpen(false)}>Participants</Link> : null}
-      {authenticated ? <Link href="/admin/users" onClick={() => setOpen(false)}>User enrollment management</Link> : null}
       {authenticated ? <Link href="/profile" onClick={() => setOpen(false)}>My Profile</Link> : null}
-      {authenticated ? <button className={styles.menuAction} type="button" onClick={() => { setOpen(false); onSignOut?.(); }}>Sign out</button> : null}
+      {authenticated ? <button className={styles.menuAction} type="button" onClick={() => { setOpen(false); onSignOut?.(); }}>Sign Out</button> : null}
     </div> : null}
   </div>;
 }

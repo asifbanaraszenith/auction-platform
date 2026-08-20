@@ -3,22 +3,14 @@ import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
-function getAdminApp() {
-  return getApps()[0] ?? initializeApp({ credential: applicationDefault() });
-}
+function getAdminApp() { return getApps()[0] ?? initializeApp({ credential: applicationDefault() }); }
 
 async function authorize(request: Request) {
   const authorization = request.headers.get("authorization");
   if (!authorization?.startsWith("Bearer ")) throw new Error("AUTHENTICATION_REQUIRED");
   const app = getAdminApp();
   const decoded = await getAuth(app).verifyIdToken(authorization.slice("Bearer ".length), true);
-  const db = getFirestore(app);
-  const isSuperAdmin = decoded.superAdmin === true;
-  if (!isSuperAdmin) {
-    const userSnapshot = await db.collection("users").doc(decoded.uid).get();
-    if (!userSnapshot.exists || userSnapshot.data()?.role !== "auctionAdmin") throw new Error("INSUFFICIENT_PERMISSIONS");
-  }
-  return { db, decoded, isSuperAdmin };
+  return { db: getFirestore(app), decoded, isSuperAdmin: decoded.superAdmin === true };
 }
 
 function isValidLifecycleTransition(current: string, next: string, startAtMillis: number) {
@@ -43,15 +35,14 @@ export async function GET(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load auctions.";
     if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Insufficient permissions." }, { status: 403 });
-    console.error("Auction listing failed", error);
-    return NextResponse.json({ error: "Unable to load auctions." }, { status: 500 });
+    console.error("Auction listing failed", error); return NextResponse.json({ error: "Unable to load auctions." }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const { db, decoded } = await authorize(request);
+    const { db, decoded, isSuperAdmin } = await authorize(request);
+    if (!isSuperAdmin) return NextResponse.json({ error: "Only Super Admin can create auctions." }, { status: 403 });
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const description = typeof body.description === "string" ? body.description.trim() : "";
@@ -69,9 +60,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create auction.";
     if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Insufficient permissions." }, { status: 403 });
-    console.error("Auction creation failed", error);
-    return NextResponse.json({ error: "Unable to create auction." }, { status: 500 });
+    console.error("Auction creation failed", error); return NextResponse.json({ error: "Unable to create auction." }, { status: 500 });
   }
 }
 
@@ -91,7 +80,6 @@ export async function PUT(request: Request) {
     if (!Number.isFinite(startAtMillis) || !Number.isFinite(endAtMillis)) return NextResponse.json({ error: "Start and end times are required." }, { status: 400 });
     if (endAtMillis <= startAtMillis) return NextResponse.json({ error: "End time must be after the start time." }, { status: 400 });
     if (!settings || typeof settings !== "object") return NextResponse.json({ error: "Auction settings are required." }, { status: 400 });
-
     const reference = db.collection("auctions").doc(auctionId);
     const snapshot = await reference.get();
     if (!snapshot.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
@@ -100,16 +88,13 @@ export async function PUT(request: Request) {
     if (!isSuperAdmin && !currentAdminIds.includes(decoded.uid)) return NextResponse.json({ error: "You are not assigned to this auction." }, { status: 403 });
     const currentStatus = String(current.status ?? "created");
     if (!isValidLifecycleTransition(currentStatus, nextStatus, startAtMillis)) return NextResponse.json({ error: `Invalid auction lifecycle transition from ${currentStatus} to ${nextStatus}.` }, { status: 400 });
-
     const updatedAt = Timestamp.now();
     await reference.update({ name, description, status: nextStatus, startAt: Timestamp.fromMillis(startAtMillis), endAt: Timestamp.fromMillis(endAtMillis), settings, updatedAt });
     return NextResponse.json({ auctionId, name, description, status: nextStatus, startAtMillis, endAtMillis, settings, updatedAtMillis: updatedAt.toMillis() });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update auction.";
     if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Insufficient permissions." }, { status: 403 });
-    console.error("Auction update failed", error);
-    return NextResponse.json({ error: "Unable to update auction." }, { status: 500 });
+    console.error("Auction update failed", error); return NextResponse.json({ error: "Unable to update auction." }, { status: 500 });
   }
 }
 
@@ -123,22 +108,20 @@ export async function PATCH(request: Request) {
     if (!Array.isArray(rawAdminIds)) return NextResponse.json({ error: "Admin selection is required." }, { status: 400 });
     const adminIds: string[] = [...new Set(rawAdminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0))];
     if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
-
     const auction = await db.collection("auctions").doc(auctionId).get();
     if (!auction.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
     if (adminIds.length) {
-      const profiles = await Promise.all(adminIds.map((uid: string) => db.collection("users").doc(uid).get()));
-      const invalid = profiles.some((profile) => !profile.exists || profile.data()?.role !== "auctionAdmin");
-      if (invalid) return NextResponse.json({ error: "Every assigned user must have the Auction Admin role." }, { status: 400 });
+      const auth = getAuth(getAdminApp());
+      const accounts = await Promise.all(adminIds.map((uid) => auth.getUser(uid).catch(() => null)));
+      const invalid = accounts.some((account) => !account || account.customClaims?.superAdmin === true);
+      if (invalid) return NextResponse.json({ error: "Every assigned auction admin must be a registered non-Super-Admin user." }, { status: 400 });
     }
     await auction.ref.update({ adminIds, updatedAt: Timestamp.now() });
     return NextResponse.json({ auctionId, adminIds });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to assign auction admins.";
     if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Only Super Admin can assign auction admins." }, { status: 403 });
-    console.error("Auction admin assignment failed", error);
-    return NextResponse.json({ error: "Unable to assign auction admins." }, { status: 500 });
+    console.error("Auction admin assignment failed", error); return NextResponse.json({ error: "Unable to assign auction admins." }, { status: 500 });
   }
 }
 
@@ -149,18 +132,14 @@ export async function DELETE(request: Request) {
     const body = await request.json().catch(() => ({}));
     const auctionId = typeof body.auctionId === "string" ? body.auctionId.trim() : "";
     if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
-
     const reference = db.collection("auctions").doc(auctionId);
     const snapshot = await reference.get();
     if (!snapshot.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
-
     await db.recursiveDelete(reference);
     return NextResponse.json({ auctionId, deleted: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to delete auction.";
     if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Only Super Admin can delete auctions." }, { status: 403 });
-    console.error("Auction deletion failed", error);
-    return NextResponse.json({ error: "Unable to delete auction." }, { status: 500 });
+    console.error("Auction deletion failed", error); return NextResponse.json({ error: "Unable to delete auction." }, { status: 500 });
   }
 }
