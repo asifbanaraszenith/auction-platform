@@ -9,6 +9,17 @@
   color: var(--auction-primary);
 }
 
+.auction-group-header {
+  padding: 12px 20px 8px;
+  color: var(--auction-primary, #c7a45b);
+  border-bottom: 1px solid var(--auction-border, #3b3932);
+  text-transform: uppercase;
+  letter-spacing: .16em;
+  font-size: 10px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--auction-primary, #c7a45b) 5%, var(--auction-surface, #121210));
+}
+
 @media (max-width: 560px) {
   [data-theme] .header,
   [data-theme] .editor,
