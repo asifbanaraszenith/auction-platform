@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { getFirebaseAuth } from "@/lib/firebase/client";
 import { useAuth } from "@/components/auth-provider";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { createParticipantAccount } from "@/lib/participants/repository";
 import styles from "./participant.module.css";
 
