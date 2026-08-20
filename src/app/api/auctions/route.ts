@@ -9,8 +9,11 @@ async function authorize(request: Request) {
   const authorization = request.headers.get("authorization");
   if (!authorization?.startsWith("Bearer ")) throw new Error("AUTHENTICATION_REQUIRED");
   const app = getAdminApp();
-  const decoded = await getAuth(app).verifyIdToken(authorization.slice("Bearer ".length), true);
-  return { db: getFirestore(app), decoded, isSuperAdmin: decoded.superAdmin === true };
+  const auth = getAuth(app);
+  const decoded = await auth.verifyIdToken(authorization.slice("Bearer ".length), true);
+  const db = getFirestore(app);
+  const profile = await db.collection("users").doc(decoded.uid).get();
+  return { db, decoded, isSuperAdmin: decoded.superAdmin === true, isAuctionAdmin: profile.data()?.role === "auctionAdmin" };
 }
 
 function isValidLifecycleTransition(current: string, next: string, startAtMillis: number) {
@@ -25,7 +28,8 @@ function isValidLifecycleTransition(current: string, next: string, startAtMillis
 
 export async function GET(request: Request) {
   try {
-    const { db, decoded, isSuperAdmin } = await authorize(request);
+    const { db, decoded, isSuperAdmin, isAuctionAdmin } = await authorize(request);
+    if (!isSuperAdmin && !isAuctionAdmin) return NextResponse.json({ error: "Auction management access is restricted to Super Admin or Auction Admin." }, { status: 403 });
     const snapshot = isSuperAdmin ? await db.collection("auctions").get() : await db.collection("auctions").where("adminIds", "array-contains", decoded.uid).get();
     const auctions = snapshot.docs.map((document) => {
       const data = document.data();
@@ -41,8 +45,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { db, decoded, isSuperAdmin } = await authorize(request);
-    if (!isSuperAdmin) return NextResponse.json({ error: "Only Super Admin can create auctions." }, { status: 403 });
+    const { db, decoded, isSuperAdmin, isAuctionAdmin } = await authorize(request);
+    if (!isSuperAdmin && !isAuctionAdmin) return NextResponse.json({ error: "Only Super Admin or Auction Admin can create auctions." }, { status: 403 });
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const description = typeof body.description === "string" ? body.description.trim() : "";
@@ -66,7 +70,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { db, decoded, isSuperAdmin } = await authorize(request);
+    const { db, decoded, isSuperAdmin, isAuctionAdmin } = await authorize(request);
     const body = await request.json();
     const auctionId = typeof body.auctionId === "string" ? body.auctionId.trim() : "";
     const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -78,14 +82,14 @@ export async function PUT(request: Request) {
     if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
     if (!name) return NextResponse.json({ error: "Auction name is required before saving." }, { status: 400 });
     if (!Number.isFinite(startAtMillis) || !Number.isFinite(endAtMillis)) return NextResponse.json({ error: "Start and end times are required." }, { status: 400 });
-    if (endAtMillis <= startAtMillis) return NextResponse.json({ error: "End time must be after the start time." }, { status: 400 });
+    if (endAtMillis <= startAtMillis) return NextResponse.json({ error: "End time must be after start time." }, { status: 400 });
     if (!settings || typeof settings !== "object") return NextResponse.json({ error: "Auction settings are required." }, { status: 400 });
     const reference = db.collection("auctions").doc(auctionId);
     const snapshot = await reference.get();
     if (!snapshot.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
     const current = snapshot.data()!;
     const currentAdminIds = Array.isArray(current.adminIds) ? current.adminIds : [];
-    if (!isSuperAdmin && !currentAdminIds.includes(decoded.uid)) return NextResponse.json({ error: "You are not assigned to this auction." }, { status: 403 });
+    if (!isSuperAdmin && (!isAuctionAdmin || !currentAdminIds.includes(decoded.uid))) return NextResponse.json({ error: "You are not assigned to this auction." }, { status: 403 });
     const currentStatus = String(current.status ?? "created");
     if (!isValidLifecycleTransition(currentStatus, nextStatus, startAtMillis)) return NextResponse.json({ error: `Invalid auction lifecycle transition from ${currentStatus} to ${nextStatus}.` }, { status: 400 });
     const updatedAt = Timestamp.now();
@@ -106,15 +110,19 @@ export async function PATCH(request: Request) {
     const auctionId = typeof body.auctionId === "string" ? body.auctionId.trim() : "";
     const rawAdminIds: unknown = body.adminIds;
     if (!Array.isArray(rawAdminIds)) return NextResponse.json({ error: "Admin selection is required." }, { status: 400 });
-    const adminIds: string[] = [...new Set(rawAdminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0))];
+    const requestedAdminIds: string[] = [...new Set(rawAdminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0))];
     if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
     const auction = await db.collection("auctions").doc(auctionId).get();
     if (!auction.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
-    if (adminIds.length) {
-      const auth = getAuth(getAdminApp());
-      const accounts = await Promise.all(adminIds.map((uid) => auth.getUser(uid).catch(() => null)));
-      const invalid = accounts.some((account) => !account || account.customClaims?.superAdmin === true);
-      if (invalid) return NextResponse.json({ error: "Every assigned auction admin must be a registered non-Super-Admin user." }, { status: 400 });
+    const auth = getAuth(getAdminApp());
+    const adminIds: string[] = [];
+    for (const uid of requestedAdminIds) {
+      const account = await auth.getUser(uid).catch(() => null);
+      if (!account) return NextResponse.json({ error: "Every assigned auction admin must be a registered user." }, { status: 400 });
+      if (account.customClaims?.superAdmin === true) continue;
+      const profile = await db.collection("users").doc(uid).get();
+      if (!profile.exists) return NextResponse.json({ error: "Every assigned auction admin must be a registered user." }, { status: 400 });
+      adminIds.push(uid);
     }
     await auction.ref.update({ adminIds, updatedAt: Timestamp.now() });
     return NextResponse.json({ auctionId, adminIds });
