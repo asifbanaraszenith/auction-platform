@@ -29,7 +29,8 @@ function isValidLifecycleTransition(current: string, next: string, startAtMillis
 export async function GET(request: Request) {
   try {
     const { db, decoded, isSuperAdmin, isAuctionAdmin } = await authorize(request);
-    const snapshot = isSuperAdmin ? await db.collection("auctions").get() : isAuctionAdmin ? await db.collection("auctions").where("adminIds", "array-contains", decoded.uid).get() : await db.collection("auctions").get();
+    if (!isSuperAdmin && !isAuctionAdmin) return NextResponse.json({ error: "Auction management access is restricted to Super Admin or Auction Admin." }, { status: 403 });
+    const snapshot = isSuperAdmin ? await db.collection("auctions").get() : await db.collection("auctions").where("adminIds", "array-contains", decoded.uid).get();
     const auctions = snapshot.docs.map((document) => {
       const data = document.data();
       return { id: document.id, name: data.name, description: data.description ?? "", ownerId: data.ownerId, adminIds: data.adminIds ?? [], status: data.status, startAtMillis: data.startAt instanceof Timestamp ? data.startAt.toMillis() : null, endAtMillis: data.endAt instanceof Timestamp ? data.endAt.toMillis() : null, settings: data.settings ?? {}, createdAtMillis: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0, updatedAtMillis: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : 0 };
