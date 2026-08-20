@@ -110,15 +110,19 @@ export async function PATCH(request: Request) {
     const auctionId = typeof body.auctionId === "string" ? body.auctionId.trim() : "";
     const rawAdminIds: unknown = body.adminIds;
     if (!Array.isArray(rawAdminIds)) return NextResponse.json({ error: "Admin selection is required." }, { status: 400 });
-    const adminIds: string[] = [...new Set(rawAdminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0))];
+    const requestedAdminIds: string[] = [...new Set(rawAdminIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0))];
     if (!auctionId) return NextResponse.json({ error: "Auction ID is required." }, { status: 400 });
     const auction = await db.collection("auctions").doc(auctionId).get();
     if (!auction.exists) return NextResponse.json({ error: "Auction not found." }, { status: 404 });
-    if (adminIds.length) {
-      const auth = getAuth(getAdminApp());
-      const accounts = await Promise.all(adminIds.map((uid) => auth.getUser(uid).catch(() => null)));
-      const invalid = accounts.some((account) => !account || account.customClaims?.superAdmin === true);
-      if (invalid) return NextResponse.json({ error: "Every assigned auction admin must be a registered non-Super-Admin user." }, { status: 400 });
+    const auth = getAuth(getAdminApp());
+    const adminIds: string[] = [];
+    for (const uid of requestedAdminIds) {
+      const account = await auth.getUser(uid).catch(() => null);
+      if (!account) return NextResponse.json({ error: "Every assigned auction admin must be a registered user." }, { status: 400 });
+      if (account.customClaims?.superAdmin === true) continue;
+      const profile = await db.collection("users").doc(uid).get();
+      if (!profile.exists) return NextResponse.json({ error: "Every assigned auction admin must be a registered user." }, { status: 400 });
+      adminIds.push(uid);
     }
     await auction.ref.update({ adminIds, updatedAt: Timestamp.now() });
     return NextResponse.json({ auctionId, adminIds });
