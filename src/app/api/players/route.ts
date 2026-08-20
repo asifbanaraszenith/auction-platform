@@ -19,7 +19,7 @@ function responseError(error: unknown, fallback: string) {
 }
 
 export async function GET(request: Request) {
-  try { const { db } = await authorize(request); const snapshot = await db.collection("players").orderBy("displayName").get(); return NextResponse.json({ players: snapshot.docs.map((doc) => { const data = doc.data(); return { id: doc.id, displayName: data.displayName, expertise: data.expertise ?? "", photoUrl: data.photoUrl ?? null, createdBy: data.createdBy, createdAtMillis: data.createdAt?.toMillis?.() ?? 0, updatedAtMillis: data.updatedAt?.toMillis?.() ?? 0 }; }) }); }
+  try { const { db } = await authorize(request); const snapshot = await db.collection("players").orderBy("displayName").get(); return NextResponse.json({ players: snapshot.docs.map((doc) => { const data = doc.data(); return { id: doc.id, displayName: data.displayName, photoUrl: data.photoUrl ?? null, userId: data.userId ?? null, createdBy: data.createdBy, createdAtMillis: data.createdAt?.toMillis?.() ?? 0, updatedAtMillis: data.updatedAt?.toMillis?.() ?? 0 }; }) }); }
   catch (error) { return responseError(error, "Unable to load participants."); }
 }
 
@@ -27,12 +27,10 @@ export async function POST(request: Request) {
   try {
     const { db, uid } = await authorize(request); const body = await request.json();
     const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
-    const expertise = typeof body.expertise === "string" ? body.expertise.trim() : "";
     const photoUrl = typeof body.photoUrl === "string" && body.photoUrl.trim() ? body.photoUrl.trim() : null;
     if (!displayName) return NextResponse.json({ error: "Participant name is required." }, { status: 400 });
-    if (!expertise) return NextResponse.json({ error: "Participant expertise is required." }, { status: 400 });
     const duplicate = await db.collection("players").where("displayName", "==", displayName).limit(1).get(); if (!duplicate.empty) return NextResponse.json({ error: "A participant with this name already exists." }, { status: 409 });
-    const now = Timestamp.now(); const ref = await db.collection("players").add({ displayName, expertise, photoUrl, createdBy: uid, createdAt: now, updatedAt: now });
-    return NextResponse.json({ id: ref.id, displayName, expertise, photoUrl, createdBy: uid, createdAtMillis: now.toMillis(), updatedAtMillis: now.toMillis() }, { status: 201 });
+    const now = Timestamp.now(); const ref = await db.collection("players").add({ displayName, photoUrl, createdBy: uid, createdAt: now, updatedAt: now });
+    return NextResponse.json({ id: ref.id, displayName, photoUrl, createdBy: uid, createdAtMillis: now.toMillis(), updatedAtMillis: now.toMillis() }, { status: 201 });
   } catch (error) { return responseError(error, "Unable to create participant."); }
 }
