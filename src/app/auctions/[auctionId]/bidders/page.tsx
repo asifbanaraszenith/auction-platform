@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
-import { addAuctionBidder, listAuctionBidders, removeAuctionBidder, type AvailableBidder } from "@/lib/auctions/bidders";
+import { addAuctionBidder, listAuctionBidders, removeAuctionBidder, updateAuctionBidder, type AvailableBidder } from "@/lib/auctions/bidders";
 import type { AuctionBidder } from "@/lib/auctions/types";
 import styles from "../../auctions.module.css";
 
@@ -16,6 +16,8 @@ export default function AuctionBiddersPage() {
   const [available, setAvailable] = useState<AvailableBidder[]>([]);
   const [userId, setUserId] = useState("");
   const [purse, setPurse] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingPurse, setEditingPurse] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -39,32 +41,184 @@ export default function AuctionBiddersPage() {
   }, [loading, user, load]);
 
   async function add() {
-    if (!user || !userId) { setError("Select a registered bidder."); return; }
+    if (!user || !userId) {
+      setError("Select a registered bidder.");
+      return;
+    }
     const value = Number(purse);
-    if (!Number.isFinite(value) || value < 0) { setError("Initial purse must be a non-negative number."); return; }
-    setBusy(true); setError("");
-    try { await addAuctionBidder(user, auctionId, { userId, initialPurse: value }); setUserId(""); setPurse(""); await load(); setNotice("Bidder added to this auction."); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to add bidder."); }
-    finally { setBusy(false); }
+    if (!Number.isFinite(value) || value < 0) {
+      setError("Initial purse must be a non-negative number.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await addAuctionBidder(user, auctionId, { userId, initialPurse: value });
+      setUserId("");
+      setPurse("");
+      await load();
+      setNotice("Bidder added to this auction.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to add bidder.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function beginEdit(bidder: AuctionBidder) {
+    setEditingId(bidder.id);
+    setEditingPurse(String(bidder.initialPurse));
+    setError("");
+    setNotice("");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingPurse("");
+  }
+
+  async function saveEdit(bidder: AuctionBidder) {
+    if (!user) return;
+    const value = Number(editingPurse);
+    if (!Number.isFinite(value) || value < 0) {
+      setError("Initial purse must be a non-negative number.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await updateAuctionBidder(user, auctionId, bidder.id, { initialPurse: value });
+      cancelEdit();
+      await load();
+      setNotice(`${bidder.displayName}'s purse was updated.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to update bidder.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleStatus(bidder: AuctionBidder) {
+    if (!user) return;
+    const nextStatus = bidder.status === "active" ? "inactive" : "active";
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await updateAuctionBidder(user, auctionId, bidder.id, { status: nextStatus });
+      await load();
+      setNotice(`${bidder.displayName} is now ${nextStatus}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to update bidder status.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function remove(bidder: AuctionBidder) {
     if (!user || !window.confirm(`Remove ${bidder.displayName} from this auction?`)) return;
-    setBusy(true); setError("");
-    try { await removeAuctionBidder(user, auctionId, bidder.id); await load(); setNotice("Bidder removed from this auction."); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to remove bidder."); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await removeAuctionBidder(user, auctionId, bidder.id);
+      await load();
+      setNotice("Bidder removed from this auction.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to remove bidder.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (loading || !user) return <main className={styles.loading}>Loading bidders…</main>;
-  return <main className={styles.shell}>
-    <header className={styles.header}><div><p className={styles.eyebrow}>Auction Platform / Auction Setup</p><h1>Bidder Purses</h1><p className={styles.subtitle}>Assign registered bidder accounts to this auction and define their auction-specific starting purse in points.</p></div><div className={styles.headerActions}><button className={styles.secondaryButton} onClick={() => router.push("/auctions")}>Back</button></div></header>
-    <section className={styles.editor}>
-      {error && <div className={styles.error} role="alert">{error}</div>}{notice && <div className={styles.notice} role="status">{notice}</div>}
-      <section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Auction setup</p><h2>Bidder / Team Purses</h2><p>The purse belongs to this auction assignment. It is not stored on the global user or participant profile.</p></div></div>
-        <div className={styles.formGrid} style={{ marginTop: 20 }}><label>BIDDER ACCOUNT<select value={userId} onChange={(e) => setUserId(e.target.value)}><option value="">Select registered bidder</option>{available.map((item) => <option key={item.userId} value={item.userId}>{item.displayName}{item.email ? ` — ${item.email}` : ""}</option>)}</select></label><label>INITIAL PURSE<input type="number" min="0" step="1" value={purse} onChange={(e) => setPurse(e.target.value)} placeholder="1000" /></label><div style={{ display: "flex", alignItems: "end" }}><button className={styles.primaryButton} style={{ width: "100%" }} onClick={add} disabled={busy || !userId}>{busy ? "ADDING…" : "ADD BIDDER"}</button></div></div>
+
+  return (
+    <main className={styles.shell}>
+      <header className={styles.header}>
+        <div>
+          <p className={styles.eyebrow}>Auction Platform / Auction Setup</p>
+          <h1>Bidder Purses</h1>
+          <p className={styles.subtitle}>Assign registered bidder accounts to this auction and manage their auction-specific starting purse.</p>
+        </div>
+        <div className={styles.headerActions}>
+          <button className={styles.secondaryButton} onClick={() => router.push(`/auctions`)}>Back</button>
+        </div>
+      </header>
+
+      <section className={styles.editor}>
+        {error && <div className={styles.error} role="alert">{error}</div>}
+        {notice && <div className={styles.notice} role="status">{notice}</div>}
+
+        <section className={styles.configSection}>
+          <div className={styles.configHeader}>
+            <div>
+              <p className={styles.eyebrow}>Auction setup</p>
+              <h2>Bidder / Team Purses</h2>
+              <p>The purse belongs to this auction assignment. It is not stored on the global user or participant profile.</p>
+            </div>
+          </div>
+          <div className={styles.formGrid} style={{ marginTop: 20 }}>
+            <label>
+              BIDDER ACCOUNT
+              <select value={userId} onChange={(e) => setUserId(e.target.value)}>
+                <option value="">Select registered bidder</option>
+                {available.map((item) => <option key={item.userId} value={item.userId}>{item.displayName}{item.email ? ` — ${item.email}` : ""}</option>)}
+              </select>
+            </label>
+            <label>
+              INITIAL PURSE
+              <input type="number" min="0" step="1" value={purse} onChange={(e) => setPurse(e.target.value)} placeholder="1000" />
+            </label>
+            <div style={{ display: "flex", alignItems: "end" }}>
+              <button className={styles.primaryButton} style={{ width: "100%" }} onClick={() => void add()} disabled={busy || !userId}>
+                {busy ? "ADDING…" : "ADD BIDDER"}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.configSection}>
+          <div className={styles.configHeader}>
+            <div>
+              <p className={styles.eyebrow}>Registered in this auction</p>
+              <h2>Bidders</h2>
+            </div>
+          </div>
+          {bidders.length === 0 ? (
+            <div className={styles.empty}>No bidders assigned to this auction yet.</div>
+          ) : (
+            <div className={styles.configList}>
+              {bidders.map((bidder) => {
+                const editing = editingId === bidder.id;
+                return (
+                  <div key={bidder.id} className={styles.configRow}>
+                    <div>
+                      <strong>{bidder.displayName}</strong>
+                      <small>{bidder.status === "active" ? "Active" : "Inactive"} · Initial purse: {bidder.initialPurse} points</small>
+                    </div>
+                    {editing ? (
+                      <div className={styles.rowActions}>
+                        <input className={styles.inlineInput} type="number" min="0" step="1" value={editingPurse} onChange={(e) => setEditingPurse(e.target.value)} aria-label={`Initial purse for ${bidder.displayName}`} />
+                        <button className={styles.primaryButton} onClick={() => void saveEdit(bidder)} disabled={busy}>SAVE</button>
+                        <button className={styles.secondaryButton} onClick={cancelEdit} disabled={busy}>CANCEL</button>
+                      </div>
+                    ) : (
+                      <div className={styles.rowActions}>
+                        <button className={styles.secondaryButton} onClick={() => beginEdit(bidder)} disabled={busy}>EDIT PURSE</button>
+                        <button className={styles.statusButton} onClick={() => void toggleStatus(bidder)} disabled={busy}>{bidder.status === "active" ? "DEACTIVATE" : "ACTIVATE"}</button>
+                        <button className={styles.dangerButton} onClick={() => void remove(bidder)} disabled={busy}>REMOVE</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </section>
-      <section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Registered in this auction</p><h2>Bidders</h2></div></div>{bidders.length === 0 ? <div className={styles.empty}>No bidders assigned to this auction yet.</div> : <div className={styles.configList}>{bidders.map((bidder) => <div key={bidder.id} className={styles.configRow}><div><strong>{bidder.displayName}</strong><small>{bidder.status === "active" ? "Active" : "Inactive"} · Initial purse: {bidder.initialPurse} points</small></div><button className={styles.dangerButton} onClick={() => void remove(bidder)} disabled={busy}>REMOVE</button></div>)}</div>}</section>
-    </section>
-  </main>;
+    </main>
+  );
 }
