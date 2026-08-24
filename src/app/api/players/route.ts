@@ -11,5 +11,27 @@ async function authorize(request: Request) {
   return { db, uid: decoded.uid };
 }
 function responseError(error: unknown, fallback: string) { const message = error instanceof Error ? error.message : fallback; if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 }); if (message === "INSUFFICIENT_PERMISSIONS") return NextResponse.json({ error: "Insufficient permissions." }, { status: 403 }); console.error("Player operation failed", error); return NextResponse.json({ error: fallback }, { status: 500 }); }
-export async function GET(request: Request) { try { const { db } = await authorize(request); const snapshot = await db.collection("players").orderBy("displayName").get(); return NextResponse.json({ players: snapshot.docs.map((doc) => { const data = doc.data(); return { id: doc.id, displayName: data.displayName, photoUrl: data.photoUrl ?? null, userId: data.userId ?? null, createdBy: data.createdBy, createdAtMillis: data.createdAt?.toMillis?.() ?? 0, updatedAtMillis: data.updatedAt?.toMillis?.() ?? 0 }; }) }); } catch (error) { return responseError(error, "Unable to load participants."); } }
+export async function GET(request: Request) {
+  try {
+    const { db } = await authorize(request);
+    const [playersSnapshot, participantUsersSnapshot] = await Promise.all([
+      db.collection("players").orderBy("displayName").get(),
+      db.collection("users").where("role", "==", "participant").get(),
+    ]);
+    const players = new Map<string, Record<string, unknown>>();
+    for (const doc of playersSnapshot.docs) {
+      const data = doc.data();
+      players.set(doc.id, { id: doc.id, displayName: data.displayName, photoUrl: data.photoUrl ?? null, userId: data.userId ?? null, createdBy: data.createdBy, createdAtMillis: data.createdAt?.toMillis?.() ?? 0, updatedAtMillis: data.updatedAt?.toMillis?.() ?? 0 });
+    }
+    for (const doc of participantUsersSnapshot.docs) {
+      const data = doc.data();
+      const existing = [...players.values()].find((player) => player.userId === doc.id);
+      if (existing) continue;
+      const createdAt = data.createdAt?.toMillis?.() ?? 0;
+      const updatedAt = data.updatedAt?.toMillis?.() ?? createdAt;
+      players.set(doc.id, { id: doc.id, displayName: data.displayName ?? data.email ?? "", photoUrl: data.photoUrl ?? null, userId: doc.id, createdBy: data.createdBy ?? "", createdAtMillis: createdAt, updatedAtMillis: updatedAt });
+    }
+    return NextResponse.json({ players: [...players.values()].sort((a, b) => String(a.displayName).localeCompare(String(b.displayName))) });
+  } catch (error) { return responseError(error, "Unable to load participants."); }
+}
 export async function POST(request: Request) { try { const { db, uid } = await authorize(request); const body = await request.json(); const displayName = typeof body.displayName === "string" ? body.displayName.trim() : ""; const photoUrl = typeof body.photoUrl === "string" && body.photoUrl.trim() ? body.photoUrl.trim() : null; if (!displayName) return NextResponse.json({ error: "Participant name is required." }, { status: 400 }); const duplicate = await db.collection("players").where("displayName", "==", displayName).limit(1).get(); if (!duplicate.empty) return NextResponse.json({ error: "A participant with this name already exists." }, { status: 409 }); const now = Timestamp.now(); const ref = await db.collection("players").add({ displayName, photoUrl, createdBy: uid, createdAt: now, updatedAt: now }); return NextResponse.json({ id: ref.id, displayName, photoUrl, createdBy: uid, createdAtMillis: now.toMillis(), updatedAtMillis: now.toMillis() }, { status: 201 }); } catch (error) { return responseError(error, "Unable to create participant."); } }
