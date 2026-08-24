@@ -1,0 +1,3 @@
+Reapplied the uniform auction editor content gutter fix from commit f67cab3b onto development.
+
+The auction editor sections now share the same content edge and box sizing.
