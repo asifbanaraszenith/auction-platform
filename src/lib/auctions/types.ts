@@ -10,11 +10,9 @@ export const DEFAULT_AUCTION_THEME: AuctionTheme = { mode: "dark", primaryColor:
 export type AuctionSettings = { mode: AuctionMode; points: string; timezone: string; theme: AuctionTheme };
 export type Auction = { id: string; name: string; description: string; ownerId: string; adminIds: string[]; status: AuctionStatus; startAt: Timestamp | null; endAt: Timestamp | null; settings: AuctionSettings; createdAt: Timestamp; updatedAt: Timestamp };
 export type CreateAuctionInput = Omit<Auction, "id" | "createdAt" | "updatedAt">;
-
-/** Global participant identity/profile. Auction classification and expertise are never stored here. */
 export type Player = { id: string; displayName: string; photoUrl?: string; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp };
-/** Categories belong to one auction and define the base-price rules for that auction. */
 export type AuctionCategory = { id: string; name: string; defaultBasePrice: number; minimumBasePrice: number; sortOrder: number; active: boolean; createdAt: Timestamp; updatedAt: Timestamp };
-/** A participant registered in one auction. Category, expertise and base-price rules belong to this auction registration. */
 export type AuctionParticipant = { id: string; playerId: string; playerName: string; expertise: string; categoryId: string; categoryName: string; basePrice: number; minimumBasePrice: number; status: "eligible" | "withdrawn" | "sold" | "unsold" | "reserved"; createdAt: Timestamp; updatedAt: Timestamp };
-export type AuctionBidder = { id: string; userId: string; displayName: string; initialPurse: number; status: "active" | "inactive"; createdAt: Timestamp; updatedAt: Timestamp };
+export type AuctionBidder = { id: string; userId: string; displayName: string; initialPurse: number; spentPurse?: number; status: "active" | "inactive"; createdAt: Timestamp; updatedAt: Timestamp };
+export type AuctionLot = { id: string; playerId: string; playerName: string; categoryId: string | null; startingBid: number; bidIncrement: number; currentBid: number; currentBidderId: string | null; status: "queued" | "live" | "paused" | "sold" | "unsold"; sortOrder: number; createdAt: Timestamp; updatedAt: Timestamp };
+export type AuctionBid = { id: string; bidderId: string; bidderUserId: string; bidderName: string; amount: number; sequence: number; createdAt: Timestamp };
