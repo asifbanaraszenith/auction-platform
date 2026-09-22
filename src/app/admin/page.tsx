@@ -1,12 +1,12 @@
 "use client";
-import {useEffect,useState} from "react";
+import {useCallback,useEffect,useState} from "react";
 import {useAuth} from "@/components/auth-provider";
 import {useRouter} from "next/navigation";
 import styles from "../auctions/auctions.module.css";
 type U={uid:string;email:string;displayName:string;isAuctionAdmin:boolean};
 export default function AdminPage(){const{user,roles,loading}=useAuth();const router=useRouter();const[users,setUsers]=useState<U[]>([]);const[busy,setBusy]=useState("");const[error,setError]=useState("");
-async function load(){if(!user)return;const t=await user.getIdToken(true);const r=await fetch("/api/auction-admins",{headers:{Authorization:`Bearer ${t}`},cache:"no-store"});const p=await r.json();if(!r.ok)throw new Error(p.error||"Unable to load users.");setUsers(p.users??[]);}
-useEffect(()=>{if(!loading&&user&&roles.includes("superAdmin"))void load().catch(e=>setError(e instanceof Error?e.message:"Unable to load users."));},[loading,user,roles]);
+const load=useCallback(async()=>{if(!user)return;const t=await user.getIdToken(true);const r=await fetch("/api/auction-admins",{headers:{Authorization:`Bearer ${t}`},cache:"no-store"});const p=await r.json();if(!r.ok)throw new Error(p.error||"Unable to load users.");setUsers(p.users??[]);},[user]);
+useEffect(()=>{if(!loading&&user&&roles.includes("superAdmin")){const timer=window.setTimeout(()=>void load().catch(e=>setError(e instanceof Error?e.message:"Unable to load users.")),0);return()=>window.clearTimeout(timer);}},[loading,user,roles,load]);
 async function toggle(u:U){if(!user)return;setBusy(u.uid);setError("");try{const t=await user.getIdToken(true);const r=await fetch("/api/auction-admins",{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${t}`},body:JSON.stringify({uid:u.uid,isAuctionAdmin:!u.isAuctionAdmin})});const p=await r.json();if(!r.ok)throw new Error(p.error||"Unable to update role.");await load();}catch(e){setError(e instanceof Error?e.message:"Unable to update role.");}finally{setBusy("");}}
 if(loading)return <main className={styles.loading}>Loading…</main>;
 if(!user||!roles.includes("superAdmin"))return <main className={styles.shell}><h1>Access denied</h1></main>;
