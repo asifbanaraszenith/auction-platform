@@ -62,3 +62,6 @@ This release completes the remaining product workflow as a deployable MVP across
 ## Release limitation
 
 This repository release is deployment-ready, but the model does not have direct access to the user's Firebase App Hosting control plane. Deployment must therefore be performed by the configured Firebase App Hosting/GitHub integration or by an authorized Firebase deployment command in the user's environment.
+
+
+Validation: CI must pass before release merge.
