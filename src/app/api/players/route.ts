@@ -14,16 +14,17 @@ function responseError(error: unknown, fallback: string) { const message = error
 export async function GET(request: Request) {
   try {
     const { db } = await authorize(request);
-    const [playersSnapshot, participantUsersSnapshot] = await Promise.all([
+    const [playersSnapshot, participantUsersSnapshot, auctionAdminUsersSnapshot] = await Promise.all([
       db.collection("players").orderBy("displayName").get(),
       db.collection("users").where("role", "==", "participant").get(),
+      db.collection("users").where("role", "==", "auctionAdmin").get(),
     ]);
     const players = new Map<string, Record<string, unknown>>();
     for (const doc of playersSnapshot.docs) {
       const data = doc.data();
       players.set(doc.id, { id: doc.id, displayName: data.displayName, photoUrl: data.photoUrl ?? null, userId: data.userId ?? null, createdBy: data.createdBy, createdAtMillis: data.createdAt?.toMillis?.() ?? 0, updatedAtMillis: data.updatedAt?.toMillis?.() ?? 0 });
     }
-    for (const doc of participantUsersSnapshot.docs) {
+    for (const doc of [...participantUsersSnapshot.docs, ...auctionAdminUsersSnapshot.docs]) {
       const data = doc.data();
       const existing = [...players.values()].find((player) => player.userId === doc.id);
       if (existing) continue;
