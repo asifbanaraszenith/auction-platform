@@ -121,7 +121,7 @@ export async function PATCH(request: Request) {
       if (!account) return NextResponse.json({ error: "Every assigned auction admin must be a registered user." }, { status: 400 });
       if (account.customClaims?.superAdmin === true) continue;
       const profile = await db.collection("users").doc(uid).get();
-      if (!profile.exists) return NextResponse.json({ error: "Every assigned auction admin must be a registered user." }, { status: 400 });
+      if (!profile.exists || profile.data()?.role !== "auctionAdmin") return NextResponse.json({ error: "Every assigned auction admin must first be granted Auction Admin access." }, { status: 400 });
       adminIds.push(uid);
     }
     await auction.ref.update({ adminIds, updatedAt: Timestamp.now() });
