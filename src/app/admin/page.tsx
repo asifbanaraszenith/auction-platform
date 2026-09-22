@@ -1,0 +1,13 @@
+"use client";
+import {useEffect,useState} from "react";
+import {useAuth} from "@/components/auth-provider";
+import {useRouter} from "next/navigation";
+import styles from "../auctions/auctions.module.css";
+type U={uid:string;email:string;displayName:string;isAuctionAdmin:boolean};
+export default function AdminPage(){const{user,roles,loading}=useAuth();const router=useRouter();const[users,setUsers]=useState<U[]>([]);const[busy,setBusy]=useState("");const[error,setError]=useState("");
+async function load(){if(!user)return;const t=await user.getIdToken(true);const r=await fetch("/api/auction-admins",{headers:{Authorization:`Bearer ${t}`},cache:"no-store"});const p=await r.json();if(!r.ok)throw new Error(p.error||"Unable to load users.");setUsers(p.users??[]);}
+useEffect(()=>{if(!loading&&user&&roles.includes("superAdmin"))void load().catch(e=>setError(e instanceof Error?e.message:"Unable to load users."));},[loading,user,roles]);
+async function toggle(u:U){if(!user)return;setBusy(u.uid);setError("");try{const t=await user.getIdToken(true);const r=await fetch("/api/auction-admins",{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${t}`},body:JSON.stringify({uid:u.uid,isAuctionAdmin:!u.isAuctionAdmin})});const p=await r.json();if(!r.ok)throw new Error(p.error||"Unable to update role.");await load();}catch(e){setError(e instanceof Error?e.message:"Unable to update role.");}finally{setBusy("");}}
+if(loading)return <main className={styles.loading}>Loading…</main>;
+if(!user||!roles.includes("superAdmin"))return <main className={styles.shell}><h1>Access denied</h1></main>;
+return <main className={styles.shell}><header className={styles.header}><div><p className={styles.eyebrow}>Administration</p><h1>Platform administration</h1><p className={styles.subtitle}>Manage global Auction Admin access. Super Admin access remains protected by Firebase custom claims.</p></div><button className={styles.secondaryButton} onClick={()=>router.push("/")}>Back</button></header>{error&&<div className={styles.error}>{error}</div>}<section className={styles.editor}><section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Registered accounts</p><h2>Auction Admin access</h2></div></div><div className={styles.configList}>{users.map(u=><div className={styles.configRow} key={u.uid}><div><strong>{u.displayName||"Unnamed user"}</strong><small>{u.email}</small></div><button className={u.isAuctionAdmin?styles.dangerButton:styles.primaryButton} disabled={busy===u.uid} onClick={()=>void toggle(u)}>{busy===u.uid?"SAVING…":u.isAuctionAdmin?"REMOVE ADMIN":"MAKE AUCTION ADMIN"}</button></div>)}</div></section></section></main>}
