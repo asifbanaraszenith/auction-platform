@@ -8,15 +8,17 @@ A generic, configurable auction platform for local leagues and other auction-bas
 |---|---|
 | Phase 1 — Foundation | Completed |
 | Phase 2 — Authentication | Completed |
-| Phase 3 — Auction Management | In progress |
-| Phase 4 — Participants | Pending |
-| Phase 5 — Teams & Bidders | Pending |
-| Phase 6 — Auction Engine | Pending |
-| Phase 7 — Live Bidding | Pending |
-| Phase 8 — Purse & Squad Validation | Pending |
-| Phase 9 — Administration | Pending |
-| Phase 10 — Testing & Security | Pending |
-| Phase 11 — Deployment | Pending |
+| Phase 3 — Auction Management | Completed |
+| Phase 4 — Participants | Completed |
+| Phase 5 — Teams & Bidders | Completed |
+| Phase 6 — Auction Engine | Completed |
+| Phase 7 — Live Bidding | Completed |
+| Phase 8 — Purse & Squad Validation | Completed |
+| Phase 9 — Administration | Completed |
+| Phase 10 — Testing & Security | Release validation |
+| Phase 11 — Deployment | Deployment-ready |
+
+See docs/FINAL-RELEASE.md for the completed workflow and deployment checklist.
 
 ## Product Direction
 
