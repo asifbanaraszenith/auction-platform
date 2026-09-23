@@ -129,6 +129,7 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await expect(superAdminPage.getByText("1 participant added to this auction.", { exact: true })).toBeVisible();
 
   const adminAccessSection = superAdminPage.getByRole("heading", { name: "Assign auction admins", exact: true }).locator("xpath=ancestor::div[.//button[normalize-space()='Select auction admins']][1]");
+  await expect(adminAccessSection.getByRole("button", { name: "Select auction admins", exact: true })).toBeVisible({ timeout: 30_000 });
   await adminAccessSection.getByRole("button", { name: "Select auction admins", exact: true }).click();
   await adminAccessSection.getByText(adminEmail, { exact: true }).click();
   await adminAccessSection.getByRole("button", { name: "SAVE ADMIN ASSIGNMENTS", exact: true }).click();
