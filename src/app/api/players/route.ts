@@ -14,17 +14,18 @@ function responseError(error: unknown, fallback: string) { const message = error
 export async function GET(request: Request) {
   try {
     const { db } = await authorize(request);
-    const [playersSnapshot, participantUsersSnapshot, auctionAdminUsersSnapshot] = await Promise.all([
+    const [playersSnapshot, participantUsersSnapshot, auctionAdminUsersSnapshot, viewerUsersSnapshot] = await Promise.all([
       db.collection("players").orderBy("displayName").get(),
       db.collection("users").where("role", "==", "participant").get(),
       db.collection("users").where("role", "==", "auctionAdmin").get(),
+      db.collection("users").where("role", "==", "viewer").get(),
     ]);
     const players = new Map<string, Record<string, unknown>>();
     for (const doc of playersSnapshot.docs) {
       const data = doc.data();
       players.set(doc.id, { id: doc.id, displayName: data.displayName, photoUrl: data.photoUrl ?? null, userId: data.userId ?? null, createdBy: data.createdBy, createdAtMillis: data.createdAt?.toMillis?.() ?? 0, updatedAtMillis: data.updatedAt?.toMillis?.() ?? 0 });
     }
-    for (const doc of [...participantUsersSnapshot.docs, ...auctionAdminUsersSnapshot.docs]) {
+    for (const doc of [...participantUsersSnapshot.docs, ...auctionAdminUsersSnapshot.docs, ...viewerUsersSnapshot.docs]) {
       const data = doc.data();
       const existing = [...players.values()].find((player) => player.userId === doc.id);
       if (existing) continue;
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
       ...player,
       email: (() => {
         const userId = typeof player.userId === "string" ? player.userId : "";
-        const matching = participantUsersSnapshot.docs.find((doc) => doc.id === userId) ?? auctionAdminUsersSnapshot.docs.find((doc) => doc.id === userId);
+        const matching = [...participantUsersSnapshot.docs, ...auctionAdminUsersSnapshot.docs, ...viewerUsersSnapshot.docs].find((doc) => doc.id === userId);
         return matching ? String(matching.data().email ?? "") : "";
       })(),
       auctions: registrations.get(String(player.id)) ?? [],
