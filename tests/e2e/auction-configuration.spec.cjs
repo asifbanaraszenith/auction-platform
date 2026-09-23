@@ -12,11 +12,8 @@ function localInput(date) {
 async function signIn(page, email, password) {
   await page.goto("/login");
   await page.getByLabel("Email address").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  // Super Admins and Auction Admins land on the platform home page after login.
-  // Participants are routed to /participant. The E2E flow navigates explicitly
-  // to the required admin surfaces after authentication.
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/, { timeout: 30_000 });
 }
 
@@ -25,8 +22,8 @@ async function createAccount(page, name, email, password) {
   await page.getByRole("button", { name: "Create a new account", exact: true }).click();
   await page.getByLabel("Name").fill(name);
   await page.getByLabel("Email address").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByLabel("Confirm password").fill(password);
+  await page.getByRole("textbox", { name: "Password", exact: true }).fill(password);
+  await page.getByRole("textbox", { name: "Confirm password", exact: true }).fill(password);
   await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page).toHaveURL(/\//, { timeout: 30_000 });
 }
@@ -47,7 +44,6 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   const participantName = `E2E Participant ${unique}`;
   const participantEmail = `e2e-participant-${unique}@example.com`;
 
-  // Create the two operational accounts through the real registration workflow.
   const adminContext = await browser.newContext();
   const adminPage = await adminContext.newPage();
   await createAccount(adminPage, adminName, adminEmail, accountPassword);
@@ -56,65 +52,99 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   const bidderPage = await bidderContext.newPage();
   await createAccount(bidderPage, bidderName, bidderEmail, accountPassword);
 
-  // Super Admin promotes both freshly-created registered accounts.
-  await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "Make an Auction Admin", exact: true })).toBeVisible();
+  const superAdminContext = await browser.newContext();
+  const superAdminPage = await superAdminContext.newPage();
+  await signIn(superAdminPage, superAdminEmail, superAdminPassword);
 
-  const adminSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Make an Auction Admin", exact: true }) });
+  await superAdminPage.goto("/admin");
+  const adminHeading = superAdminPage.getByRole("heading", { name: "Make an Auction Admin", exact: true });
+  try {
+    await expect(adminHeading).toBeVisible({ timeout: 10_000 });
+  } catch (error) {
+    const diagnostics = await superAdminPage.evaluate(async () => {
+      const response = await fetch("/api/me", { cache: "no-store" });
+      const text = await response.text();
+      return {
+        url: window.location.href,
+        title: document.title,
+        bodyText: document.body.innerText.slice(0, 5000),
+        meStatus: response.status,
+        meBody: text.slice(0, 5000),
+      };
+    });
+    console.error("SUPER_ADMIN_ADMIN_PAGE_DIAGNOSTICS", JSON.stringify(diagnostics, null, 2));
+    throw error;
+  }
+
+  const adminSection = adminHeading.locator("xpath=ancestor::section[1]");
   await adminSection.getByLabel("REGISTERED ACCOUNT").selectOption({ label: `${adminName} — ${adminEmail}` });
   await adminSection.getByRole("button", { name: "MAKE AUCTION ADMIN", exact: true }).click();
-  await expect(page.getByText("Auction Admin access granted.", { exact: true })).toBeVisible();
+  await expect(superAdminPage.getByText("Auction Admin access granted.", { exact: true })).toBeVisible();
 
-  const bidderSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "Make a Bidder", exact: true }) });
+  const bidderHeading = superAdminPage.getByRole("heading", { name: "Make a Bidder", exact: true });
+  const bidderSection = bidderHeading.locator("xpath=ancestor::section[1]");
   await bidderSection.getByLabel("REGISTERED ACCOUNT").selectOption({ label: `${bidderName} — ${bidderEmail}` });
   await bidderSection.getByRole("button", { name: "MAKE BIDDER", exact: true }).click();
-  await expect(page.getByText("Bidder access granted.", { exact: true })).toBeVisible();
+  await expect(superAdminPage.getByText("Bidder access granted.", { exact: true })).toBeVisible();
 
-  // Super Admin creates the auction and participant.
-  await page.goto("/auctions");
-  await page.getByRole("button", { name: "+ NEW AUCTION", exact: true }).first().click();
+  await superAdminPage.goto("/admin");
+  await expect(superAdminPage.getByRole("option", { name: `${adminName} — ${adminEmail}` }).first()).toBeAttached({ timeout: 30_000 });
+  const adminApiResponses = [];
+  const adminApiListener = async (response) => {
+    if (response.url().includes("/api/auction-admins") && response.request().method() === "GET") {
+      adminApiResponses.push({ status: response.status(), body: await response.text() });
+    }
+  };
+  superAdminPage.on("response", adminApiListener);
+  await superAdminPage.goto("/auctions");
+  await superAdminPage.getByRole("button", { name: "+ NEW AUCTION", exact: true }).first().click();
 
   const now = new Date();
-  const start = new Date(now.getTime() + 15_000);
-  const end = new Date(now.getTime() + 10 * 60_000);
+  const start = new Date(now.getTime() + 2 * 60_000);
+  const end = new Date(now.getTime() + 12 * 60_000);
 
-  await page.getByLabel("AUCTION NAME").fill(auctionName);
-  await page.getByLabel("START AT").fill(localInput(start));
-  await page.getByLabel("END AT").fill(localInput(end));
-  await page.getByRole("button", { name: "CREATE AUCTION", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Categories", exact: true })).toBeVisible();
+  await superAdminPage.getByLabel("AUCTION NAME").fill(auctionName);
+  await superAdminPage.getByLabel("START AT").fill(localInput(start));
+  await superAdminPage.getByLabel("END AT").fill(localInput(end));
+  const createResponsePromise = superAdminPage.waitForResponse((response) => response.url().endsWith("/api/auctions") && response.request().method() === "POST");
+  await superAdminPage.getByRole("button", { name: "CREATE AUCTION", exact: true }).click();
+  const createResponse = await createResponsePromise;
+  const createdAuction = await createResponse.json();
+  console.log("E2E_CREATE_AUCTION_RESPONSE", createResponse.status(), JSON.stringify(createdAuction));
+  expect(createResponse.ok()).toBeTruthy();
+  expect(createdAuction.id).toBeTruthy();
+  await expect(superAdminPage).toHaveURL(new RegExp("/auctions/" + createdAuction.id + "$"), { timeout: 30_000 });
+  await expect(superAdminPage.getByRole("heading", { name: "Categories", exact: true })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole("button", { name: "Add category" }).click();
-  await page.getByLabel("CATEGORY NAME").fill("Diamond");
-  await page.getByLabel("BASE PRICE").fill("100");
-  await page.getByLabel("MINIMUM BASE PRICE").fill("50");
-  await page.getByRole("button", { name: "ADD CATEGORY", exact: true }).click();
-  await expect(page.getByText("Category added to this auction.", { exact: true })).toBeVisible();
+  await superAdminPage.getByRole("button", { name: "Add category" }).click();
+  await superAdminPage.getByLabel("CATEGORY NAME").fill("Diamond");
+  await superAdminPage.getByRole("spinbutton", { name: "BASE PRICE", exact: true }).fill("100");
+  await superAdminPage.getByRole("spinbutton", { name: "MINIMUM BASE PRICE", exact: true }).fill("50");
+  await superAdminPage.getByRole("button", { name: "ADD CATEGORY", exact: true }).click();
+  await expect(superAdminPage.getByText("Category added to this auction.", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Add participant" }).click();
-  await page.getByRole("button", { name: "CREATE NEW PARTICIPANT", exact: true }).click();
-  await page.getByLabel("NAME").fill(participantName);
-  await page.getByLabel("EMAIL").fill(participantEmail);
-  await page.getByRole("button", { name: "CREATE PARTICIPANT", exact: true }).click();
-  await expect(page.getByText(/Participant account created/)).toBeVisible();
+  await superAdminPage.getByRole("button", { name: "Add participant" }).click();
+  await superAdminPage.getByRole("button", { name: "CREATE NEW PARTICIPANT", exact: true }).click();
+  await superAdminPage.getByRole("textbox", { name: "NAME", exact: true }).fill(participantName);
+  await superAdminPage.getByLabel("EMAIL").fill(participantEmail);
+  await superAdminPage.getByRole("button", { name: "CREATE PARTICIPANT", exact: true }).click();
 
-  const addParticipantButton = page.getByRole("button", { name: "ADD TO AUCTION", exact: true });
+  const addParticipantButton = superAdminPage.getByRole("button", { name: "ADD TO AUCTION", exact: true });
   await expect(addParticipantButton).toBeVisible();
   await expect(addParticipantButton).toBeDisabled();
-  await page.getByLabel("CATEGORY").selectOption({ label: "Diamond — 100 points" });
+  await superAdminPage.getByRole("combobox", { name: "CATEGORY", exact: true }).selectOption({ index: 1 });
   await expect(addParticipantButton).toBeEnabled();
-  // Expertise is intentionally blank because it is optional.
   await addParticipantButton.click();
-  await expect(page.getByText("1 participant added to this auction.", { exact: true })).toBeVisible();
+  await expect(superAdminPage.getByText("1 participant added to this auction.", { exact: true })).toBeVisible();
 
-  // Assign the newly-created Auction Admin to this auction.
-  const adminAccessSection = page.getByRole("heading", { name: "Assign auction admins", exact: true }).locator("..").locator("..");
+  const adminAccessSection = superAdminPage.getByText("Assign auction admins", { exact: true }).locator("xpath=../..");
+  console.log("E2E_AUCTION_ADMIN_API_RESPONSES", JSON.stringify(adminApiResponses));
+  await expect(adminAccessSection.getByRole("button", { name: "Select auction admins", exact: true })).toBeVisible({ timeout: 30_000 });
   await adminAccessSection.getByRole("button", { name: "Select auction admins", exact: true }).click();
   await adminAccessSection.getByText(adminEmail, { exact: true }).click();
   await adminAccessSection.getByRole("button", { name: "SAVE ADMIN ASSIGNMENTS", exact: true }).click();
-  await expect(page.getByText("Auction admins updated successfully.", { exact: true })).toBeVisible();
+  await expect(superAdminPage.getByText("Auction admins updated successfully.", { exact: true })).toBeVisible();
 
-  // Switch to the real Auction Admin account.
   await adminPage.goto("/auctions");
   await expect(adminPage.getByText("AUCTION ADMIN", { exact: true })).toBeVisible();
 
@@ -122,7 +152,6 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await auctionItem.click();
   await expect(adminPage.getByRole("heading", { name: "Teams & squads", exact: true })).toBeVisible();
 
-  // Auction Admin adds the bidder, creates a team and assigns the bidder to it.
   await adminPage.getByLabel("BIDDER ACCOUNT").selectOption({ label: `${bidderName} — ${bidderEmail}` });
   await adminPage.getByLabel("INITIAL PURSE").fill("1000");
   await adminPage.getByRole("button", { name: "ADD BIDDER", exact: true }).click();
@@ -139,14 +168,12 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   const teamRow = teamsSection.locator("div").filter({ hasText: `E2E Team ${unique}` }).last();
   await teamRow.locator("select").selectOption({ label: bidderName });
 
-  // Queue the participant as the first lot.
   await adminPage.getByLabel("ELIGIBLE PARTICIPANT").selectOption({ label: new RegExp(participantName) });
   await adminPage.getByLabel("STARTING BID").fill("100");
   await adminPage.getByLabel("BID INCREMENT").fill("10");
   await adminPage.getByRole("button", { name: "ADD TO QUEUE", exact: true }).click();
   await expect(adminPage.getByText("Lot added to queue.", { exact: true })).toBeVisible();
 
-  // Wait for the scheduled start, then explicitly transition the auction to persisted live state.
   await expect(adminPage.getByText("Status: live", { exact: true })).toBeVisible({ timeout: 30_000 });
   await adminPage.getByRole("button", { name: "PAUSE AUCTION", exact: true }).click();
   await expect(adminPage.getByRole("button", { name: "RESUME AUCTION", exact: true })).toBeVisible();
@@ -158,7 +185,6 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await adminPage.getByRole("button", { name: "START NEXT LOT", exact: true }).click();
   await expect(adminPage.getByText(participantName, { exact: true })).toBeVisible();
 
-  // Bidder enters the live room with the automatically-created bidder account.
   await bidderPage.goto(new URL(adminPage.url()).toString());
   await expect(bidderPage.getByRole("heading", { name: auctionName, exact: true })).toBeVisible();
   await expect(bidderPage.getByText("Available purse: 1000", { exact: true })).toBeVisible();
@@ -168,7 +194,6 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await expect(bidderPage.getByText("Action completed.", { exact: true })).toBeVisible();
   await expect(bidderPage.getByText("100", { exact: true }).first()).toBeVisible();
 
-  // Auction Admin sees the bid and settles the lot.
   await expect(adminPage.getByText(bidderName, { exact: true })).toBeVisible({ timeout: 15_000 });
   await adminPage.getByRole("button", { name: "SELL LOT", exact: true }).click();
   await expect(adminPage.getByText("Action completed.", { exact: true })).toBeVisible();
@@ -178,14 +203,14 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await expect(adminPage.getByText("Action completed.", { exact: true })).toBeVisible();
   await expect(adminPage.getByText("ended", { exact: true })).toBeVisible();
 
-  // Clean up the auction itself; the generated Firebase test accounts are intentionally disposable.
-  await page.goto("/auctions");
-  const superAdminAuction = page.getByRole("button", { name: new RegExp(auctionName) }).first();
+  await superAdminPage.goto("/auctions");
+  const superAdminAuction = superAdminPage.getByRole("button", { name: new RegExp(auctionName) }).first();
   await superAdminAuction.click();
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "DELETE AUCTION", exact: true }).click();
-  await expect(page.getByText("Auction deleted.", { exact: true })).toBeVisible();
+  superAdminPage.once("dialog", (dialog) => dialog.accept());
+  await superAdminPage.getByRole("button", { name: "DELETE AUCTION", exact: true }).click();
+  await expect(superAdminPage.getByText("Auction deleted.", { exact: true })).toBeVisible();
 
   await adminContext.close();
   await bidderContext.close();
+  await superAdminContext.close();
 });

@@ -26,5 +26,5 @@ export default function AuctionsPage() {
     return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#0d0d0c", color: "#f5f2e9" }}>Checking access…</main>;
   }
 
-  return <AuctionManagementClient />;
+  return <AuctionManagementClient mode="list" />;
 }
