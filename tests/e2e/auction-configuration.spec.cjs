@@ -23,7 +23,7 @@ async function createAccount(page, name, email, password) {
   await page.getByLabel("Name").fill(name);
   await page.getByLabel("Email address").fill(email);
   await page.getByRole("textbox", { name: "Password", exact: true }).fill(password);
-  await page.getByLabel("Confirm password").fill(password);
+  await page.getByRole("textbox", { name: "Confirm password", exact: true }).fill(password);
   await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page).toHaveURL(/\//, { timeout: 30_000 });
 }
