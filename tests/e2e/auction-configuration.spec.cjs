@@ -97,7 +97,10 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await superAdminPage.getByLabel("AUCTION NAME").fill(auctionName);
   await superAdminPage.getByLabel("START AT").fill(localInput(start));
   await superAdminPage.getByLabel("END AT").fill(localInput(end));
+  const createResponsePromise = superAdminPage.waitForResponse((response) => response.url().endsWith("/api/auctions") && response.request().method() === "POST");
   await superAdminPage.getByRole("button", { name: "CREATE AUCTION", exact: true }).click();
+  const createResponse = await createResponsePromise;
+  console.log("E2E_CREATE_AUCTION_RESPONSE", createResponse.status(), await createResponse.text());
   await superAdminPage.goto("/auctions");
   await expect(superAdminPage.getByRole("button", { name: new RegExp(auctionName) }).first()).toBeVisible({ timeout: 30_000 });
   await superAdminPage.getByRole("button", { name: new RegExp(auctionName) }).first().click();
