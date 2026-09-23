@@ -103,8 +103,8 @@ test("full auction flow provisions roles, configures an auction, bids and settle
 
   await superAdminPage.getByRole("button", { name: "Add category" }).click();
   await superAdminPage.getByLabel("CATEGORY NAME").fill("Diamond");
-  await superAdminPage.getByLabel("BASE PRICE").fill("100");
-  await superAdminPage.getByLabel("MINIMUM BASE PRICE").fill("50");
+  await superAdminPage.getByRole("spinbutton", { name: "BASE PRICE", exact: true }).fill("100");
+  await superAdminPage.getByRole("spinbutton", { name: "MINIMUM BASE PRICE", exact: true }).fill("50");
   await superAdminPage.getByRole("button", { name: "ADD CATEGORY", exact: true }).click();
   await expect(superAdminPage.getByText("Category added to this auction.", { exact: true })).toBeVisible();
 
