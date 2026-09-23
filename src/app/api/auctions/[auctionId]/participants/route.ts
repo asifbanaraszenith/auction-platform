@@ -11,7 +11,7 @@ export async function POST(request: Request, context: { params: Promise<{ auctio
       const playerIds: string[] = Array.from(new Set(rawPlayerIds.filter((value: unknown): value is string => typeof value === "string" && value.trim().length > 0).map((value: string) => value.trim())));
       const categoryId = typeof body.categoryId === "string" ? body.categoryId.trim() : "";
       const expertise = typeof body.expertise === "string" ? body.expertise.trim() : "";
-      if (!playerIds.length || !categoryId || !expertise) return NextResponse.json({ error: "At least one participant, expertise and category are required." }, { status: 400 });
+      if (!playerIds.length || !categoryId) return NextResponse.json({ error: "At least one participant and category are required." }, { status: 400 });
       const category = await auctionRef.collection("categories").doc(categoryId).get();
       if (!category.exists || category.data()?.active === false) return NextResponse.json({ error: "Category not found or inactive." }, { status: 404 });
       const categoryName = String(category.data()?.name ?? "");
