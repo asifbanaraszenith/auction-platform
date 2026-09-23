@@ -64,6 +64,9 @@ test("participant assignment supports bulk selection", () => {
   assert.match(page, /Select participants/);
   assert.match(repo, /playerIds\?: string\[\]/);
   assert.match(api, /Array\.isArray\(body\.playerIds\)/);
+  assert.match(page, /disabled=\{busy \|\| selectedPlayerIds\.length === 0 \|\| !categoryId\}/);
+  assert.doesNotMatch(page, /!expertise\.trim\(\)/);
+  assert.doesNotMatch(api, /!expertise/);
 });
 
 test("auction admin assignment is constrained to globally eligible admins", () => {
