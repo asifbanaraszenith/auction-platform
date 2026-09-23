@@ -179,8 +179,8 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await page.goto("/auctions");
   const superAdminAuction = page.getByRole("button", { name: new RegExp(auctionName) }).first();
   await superAdminAuction.click();
-  await page.getByRole("button", { name: "DELETE AUCTION", exact: true }).click();
   page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "DELETE AUCTION", exact: true }).click();
   await expect(page.getByText("Auction deleted.", { exact: true })).toBeVisible();
 
   await adminContext.close();
