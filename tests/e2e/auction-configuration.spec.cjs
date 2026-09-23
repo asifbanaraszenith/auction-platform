@@ -123,7 +123,7 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   const addParticipantButton = superAdminPage.getByRole("button", { name: "ADD TO AUCTION", exact: true });
   await expect(addParticipantButton).toBeVisible();
   await expect(addParticipantButton).toBeDisabled();
-  await superAdminPage.getByLabel("CATEGORY").selectOption({ label: "Diamond — 100 points" });
+  await superAdminPage.getByRole("combobox", { name: "CATEGORY", exact: true }).selectOption({ label: "Diamond — 100 points" });
   await expect(addParticipantButton).toBeEnabled();
   await addParticipantButton.click();
   await expect(superAdminPage.getByText("1 participant added to this auction.", { exact: true })).toBeVisible();
