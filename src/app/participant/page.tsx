@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
@@ -19,8 +19,8 @@ export default function ParticipantPage() {
   const [busy,setBusy]=useState(false); const [error,setError]=useState(""); const [notice,setNotice]=useState("");
   const canManage=roles.includes("superAdmin")||roles.includes("auctionAdmin"); const isParticipant=roles.includes("participant"); const isSuperAdmin=roles.includes("superAdmin");
 
-  async function refreshParticipants(){if(!user)return; const data=await listPlayers(user); setParticipants(data);}
-  useEffect(()=>{if(loading)return;if(!user){router.replace("/login");return;}void(async()=>{try{const token=await user.getIdToken(true);const me=await fetch("/api/me",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});const profile=await me.json();if(!me.ok)throw new Error(profile.error);const next=Array.isArray(profile.roles)?profile.roles:[];setRoles(next);if(next.includes("participant")){const r=await fetch("/api/me/auctions",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});const p=await r.json();if(!r.ok)throw new Error(p.error);setAuctions(p.auctions??[]);}if(next.includes("superAdmin")||next.includes("auctionAdmin"))await refreshParticipants();}catch(e){setError(e instanceof Error?e.message:"Unable to load participants.");}})();},[loading,user,router]);
+  const refreshParticipants=useCallback(async()=>{if(!user)return;const data=await listPlayers(user);setParticipants(data);},[user]);
+  useEffect(()=>{if(loading)return;if(!user){router.replace("/login");return;}void(async()=>{try{const token=await user.getIdToken(true);const me=await fetch("/api/me",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});const profile=await me.json();if(!me.ok)throw new Error(profile.error);const next=Array.isArray(profile.roles)?profile.roles:[];setRoles(next);if(next.includes("participant")){const r=await fetch("/api/me/auctions",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});const p=await r.json();if(!r.ok)throw new Error(p.error);setAuctions(p.auctions??[]);}if(next.includes("superAdmin")||next.includes("auctionAdmin"))await refreshParticipants();}catch(e){setError(e instanceof Error?e.message:"Unable to load participants.");}})();},[loading,user,router,refreshParticipants]);
 
   async function createAccount(){if(!user)return;setError("");setNotice("");if(!name.trim()||!email.trim()){setError("Name and email are required.");return;}setBusy(true);try{const result=await createParticipantAccount(user,{name:name.trim(),email:email.trim(),photo});setName("");setEmail("");setPhoto(null);await refreshParticipants();setNotice(`Participant account created. Temporary password: ${result.temporaryPassword}`);}catch(e){setError(e instanceof Error?e.message:"Unable to create participant account.");}finally{setBusy(false);}}
   function openEdit(p:Player){setEdit(p);setEditName(p.displayName);setEditEmail(p.email??"");setEditPhoto(null);setError("");setNotice("");}
