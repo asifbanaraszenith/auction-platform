@@ -59,7 +59,7 @@ export async function GET(request: Request) {
       })(),
       auctions: registrations.get(String(player.id)) ?? [],
     }));
-    return NextResponse.json({ players: enriched.sort((a, b) => String(a.displayName).localeCompare(String(b.displayName))) });
+    return NextResponse.json({ players: enriched.sort((a, b) => String(a["displayName"] ?? "").localeCompare(String(b["displayName"] ?? ""))) });
   } catch (error) { return responseError(error, "Unable to load participants."); }
 }
 export async function POST(request: Request) { try { const { db, uid } = await authorize(request); const body = await request.json(); const displayName = typeof body.displayName === "string" ? body.displayName.trim() : ""; const photoUrl = typeof body.photoUrl === "string" && body.photoUrl.trim() ? body.photoUrl.trim() : null; if (!displayName) return NextResponse.json({ error: "Participant name is required." }, { status: 400 }); const duplicate = await db.collection("players").where("displayName", "==", displayName).limit(1).get(); if (!duplicate.empty) return NextResponse.json({ error: "A participant with this name already exists." }, { status: 409 }); const now = Timestamp.now(); const ref = await db.collection("players").add({ displayName, photoUrl, createdBy: uid, createdAt: now, updatedAt: now }); return NextResponse.json({ id: ref.id, displayName, photoUrl, createdBy: uid, createdAtMillis: now.toMillis(), updatedAtMillis: now.toMillis() }, { status: 201 }); } catch (error) { return responseError(error, "Unable to create participant."); } }
