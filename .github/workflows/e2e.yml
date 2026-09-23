@@ -1,6 +1,9 @@
 name: Browser E2E
 
 on:
+  push:
+    branches:
+      - development
   workflow_dispatch:
 
 permissions:
