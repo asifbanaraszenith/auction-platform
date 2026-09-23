@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "bootstrap:super-admins": "tsx scripts/bootstrap-super-admins.ts"
+    "bootstrap:super-admins": "tsx scripts/bootstrap-super-admins.ts",
+    "test": "tsx --test tests/**/*.test.ts",
+    "test:qa": "npm run test"
   },
   "dependencies": {
     "firebase": "latest",
