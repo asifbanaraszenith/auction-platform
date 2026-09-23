@@ -26,9 +26,10 @@ export async function GET(request: Request) {
           email: String(account.email ?? data.email ?? ""),
           displayName: String(account.displayName ?? data.displayName ?? data.name ?? ""),
           isAuctionAdmin: data.role === "auctionAdmin",
+          isBidder: data.role === "bidder",
         };
       } catch { return null; }
-    }))).filter((item): item is { uid: string; email: string; displayName: string; isAuctionAdmin: boolean } => item !== null)
+    }))).filter((item): item is { uid: string; email: string; displayName: string; isAuctionAdmin: boolean; isBidder: boolean } => item !== null)
       .sort((a, b) => (a.displayName || a.email).localeCompare(b.displayName || b.email));
     return NextResponse.json({ users });
   } catch (error) {
@@ -44,7 +45,7 @@ export async function PATCH(request: Request) {
     const { db, auth } = await authorize(request);
     const body = await request.json();
     const uid = typeof body.uid === "string" ? body.uid.trim() : "";
-    const isAuctionAdmin = body.isAuctionAdmin === true;
+    const role = body.role === "bidder" ? "bidder" : body.isAuctionAdmin === true ? "auctionAdmin" : "viewer";
     if (!uid) return NextResponse.json({ error: "User ID is required." }, { status: 400 });
     const account = await auth.getUser(uid);
     if (account.customClaims?.superAdmin === true) return NextResponse.json({ error: "Super Admin accounts cannot be changed here." }, { status: 400 });
@@ -52,8 +53,8 @@ export async function PATCH(request: Request) {
     const snapshot = await reference.get();
     if (!snapshot.exists) return NextResponse.json({ error: "User profile not found." }, { status: 404 });
     const now = Timestamp.now();
-    await reference.set({ role: isAuctionAdmin ? "auctionAdmin" : "viewer", updatedAt: now }, { merge: true });
-    return NextResponse.json({ uid, isAuctionAdmin });
+    await reference.set({ role, updatedAt: now }, { merge: true });
+    return NextResponse.json({ uid, role, isAuctionAdmin: role === "auctionAdmin", isBidder: role === "bidder" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update auction admin role.";
     if (message === "AUTHENTICATION_REQUIRED") return NextResponse.json({ error: "Authentication required." }, { status: 401 });
