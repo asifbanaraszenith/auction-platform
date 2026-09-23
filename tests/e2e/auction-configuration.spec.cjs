@@ -76,12 +76,13 @@ test("full auction flow provisions roles, configures an auction, bids and settle
     throw error;
   }
 
-  const adminSection = superAdminPage.locator("section").filter({ has: adminHeading });
+  const adminSection = adminHeading.locator("xpath=ancestor::section[1]");
   await adminSection.getByLabel("REGISTERED ACCOUNT").selectOption({ label: `${adminName} — ${adminEmail}` });
   await adminSection.getByRole("button", { name: "MAKE AUCTION ADMIN", exact: true }).click();
   await expect(superAdminPage.getByText("Auction Admin access granted.", { exact: true })).toBeVisible();
 
-  const bidderSection = superAdminPage.locator("section").filter({ has: superAdminPage.getByRole("heading", { name: "Make a Bidder", exact: true }) });
+  const bidderHeading = superAdminPage.getByRole("heading", { name: "Make a Bidder", exact: true });
+  const bidderSection = bidderHeading.locator("xpath=ancestor::section[1]");
   await bidderSection.getByLabel("REGISTERED ACCOUNT").selectOption({ label: `${bidderName} — ${bidderEmail}` });
   await bidderSection.getByRole("button", { name: "MAKE BIDDER", exact: true }).click();
   await expect(superAdminPage.getByText("Bidder access granted.", { exact: true })).toBeVisible();
