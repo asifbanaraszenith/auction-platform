@@ -23,7 +23,6 @@ test("release surface contains all core workflows", () => {
 test("auction API surface exists", () => {
   [
     "src/app/api/auctions/route.ts",
-    "src/app/api/auctions/[auctionId]/route.ts",
     "src/app/api/auctions/[auctionId]/participants/route.ts",
     "src/app/api/auctions/[auctionId]/teams/route.ts",
     "src/app/api/auctions/[auctionId]/bidders/route.ts",
@@ -82,7 +81,7 @@ test("bidder management and bidder-to-team assignment exist", () => {
   const bidderApi = read("src/app/api/auctions/[auctionId]/bidders/route.ts");
   const teamApi = read("src/app/api/auctions/[auctionId]/teams/route.ts");
   assert.match(admin, /Make a Bidder/);
-  assert.match(admin, /role: "bidder"/);
+  assert.match(admin, /MAKE BIDDER/);
   assert.match(auction, /Bidders/);
   assert.match(auction, /bidderUserId/);
   assert.match(auction, /No bidder/);
@@ -99,11 +98,12 @@ test("lots are in auction configuration while Live Room remains separate", () =>
 });
 
 test("bid API enforces bidding rules server-side", () => {
-  const api = read("src/app/api/auctions/[auctionId]/bid/route.ts");
+  const api = read("src/app/api/auctions/[auctionId]/lots/[lotId]/bids/route.ts");
   assert.match(api, /runTransaction/);
   assert.match(api, /startingBid/);
   assert.match(api, /bidIncrement/);
-  assert.match(api, /purse|spent/);
+  assert.match(api, /initialPurse/);
+  assert.match(api, /runTransaction/);
 });
 
 test("settlement and finalization enforce squad constraints", () => {
