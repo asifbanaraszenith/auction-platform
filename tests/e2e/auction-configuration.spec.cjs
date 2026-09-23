@@ -56,6 +56,10 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   const bidderPage = await bidderContext.newPage();
   await createAccount(bidderPage, bidderName, bidderEmail, accountPassword);
 
+  // Refresh the Super Admin session before continuing; account provisioning can take
+  // long enough for the original auth session/token to become stale.
+  await signIn(page, superAdminEmail, superAdminPassword);
+
   // Super Admin promotes both freshly-created registered accounts.
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Make an Auction Admin", exact: true })).toBeVisible();
