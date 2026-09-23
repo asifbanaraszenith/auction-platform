@@ -86,7 +86,7 @@ test("bidder management and bidder-to-team assignment exist", () => {
   assert.match(auction, /bidderUserId/);
   assert.match(auction, /No bidder/);
   assert.match(auction, /bidders\.map/);
-  assert.match(bidderApi, /createAccount/);
+  assert.match(bidderApi, /availableUsers/);
   assert.match(teamApi, /bidderId/);
 });
 
