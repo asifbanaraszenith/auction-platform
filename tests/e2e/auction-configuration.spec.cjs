@@ -12,7 +12,7 @@ function localInput(date) {
 async function signIn(page, email, password) {
   await page.goto("/login");
   await page.getByLabel("Email address").fill(email);
-  await page.locator('input[type="password"][autocomplete="new-password"]').first().fill(password);
+  await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   // Super Admins and Auction Admins land on the platform home page after login.
   // Participants are routed to /participant. The E2E flow navigates explicitly
