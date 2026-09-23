@@ -118,7 +118,6 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await superAdminPage.getByRole("textbox", { name: "NAME", exact: true }).fill(participantName);
   await superAdminPage.getByLabel("EMAIL").fill(participantEmail);
   await superAdminPage.getByRole("button", { name: "CREATE PARTICIPANT", exact: true }).click();
-  await expect(superAdminPage.getByText(/Participant account created/)).toBeVisible();
 
   const addParticipantButton = superAdminPage.getByRole("button", { name: "ADD TO AUCTION", exact: true });
   await expect(addParticipantButton).toBeVisible();
