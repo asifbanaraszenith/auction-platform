@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "bootstrap:super-admins": "tsx scripts/bootstrap-super-admins.ts",
     "test": "tsx --test tests/**/*.test.ts",
-    "test:qa": "npm run test"
+    "test:qa": "npm run test",
+    "test:e2e": "npx --yes @playwright/test@1.55.0 test"
   },
   "dependencies": {
     "firebase": "latest",
