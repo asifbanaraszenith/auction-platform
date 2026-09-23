@@ -14,7 +14,10 @@ async function signIn(page, email, password) {
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(/\/(auctions|participant|admin)/, { timeout: 30_000 });
+  // Super Admins and Auction Admins land on the platform home page after login.
+  // Participants are routed to /participant. The E2E flow navigates explicitly
+  // to the required admin surfaces after authentication.
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/, { timeout: 30_000 });
 }
 
 async function createAccount(page, name, email, password) {
