@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { test, expect } = require("@playwright/test");
 
 const email = process.env.E2E_EMAIL;
