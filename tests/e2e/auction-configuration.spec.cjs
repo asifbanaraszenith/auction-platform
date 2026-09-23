@@ -87,6 +87,8 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await bidderSection.getByRole("button", { name: "MAKE BIDDER", exact: true }).click();
   await expect(superAdminPage.getByText("Bidder access granted.", { exact: true })).toBeVisible();
 
+  await superAdminPage.goto("/admin");
+  await expect(superAdminPage.getByRole("option", { name: `${adminName} — ${adminEmail}` })).toBeVisible({ timeout: 30_000 });
   await superAdminPage.goto("/auctions");
   await superAdminPage.getByRole("button", { name: "+ NEW AUCTION", exact: true }).first().click();
 
