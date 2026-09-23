@@ -103,8 +103,9 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   console.log("E2E_CREATE_AUCTION_RESPONSE", createResponse.status(), await createResponse.text());
   await superAdminPage.goto("/auctions");
   await expect(superAdminPage.getByRole("button", { name: new RegExp(auctionName) }).first()).toBeVisible({ timeout: 30_000 });
-  await superAdminPage.getByRole("button", { name: new RegExp(auctionName) }).first().click();
-  await expect(superAdminPage.getByRole("heading", { name: "Categories", exact: true })).toBeVisible();
+  await expect(superAdminPage.getByText(auctionName, { exact: true })).toBeVisible({ timeout: 30_000 });
+  await superAdminPage.getByText(auctionName, { exact: true }).click();
+  await expect(superAdminPage.getByRole("heading", { name: "Categories", exact: true })).toBeVisible({ timeout: 30_000 });
 
   await superAdminPage.getByRole("button", { name: "Add category" }).click();
   await superAdminPage.getByLabel("CATEGORY NAME").fill("Diamond");
