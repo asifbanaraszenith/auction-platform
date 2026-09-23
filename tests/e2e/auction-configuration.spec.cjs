@@ -22,12 +22,12 @@ async function signIn(page, email, password) {
 
 async function createAccount(page, name, email, password) {
   await page.goto("/login");
-  await superAdminPage.getByRole("button", { name: "Create a new account", exact: true }).click();
-  await superAdminPage.getByLabel("Name").fill(name);
-  await superAdminPage.getByLabel("Email address").fill(email);
-  await superAdminPage.getByRole("textbox", { name: "Password", exact: true }).fill(password);
-  await superAdminPage.getByLabel("Confirm password").fill(password);
-  await superAdminPage.getByRole("button", { name: "Create account", exact: true }).click();
+  await page.getByRole("button", { name: "Create a new account", exact: true }).click();
+  await page.getByLabel("Name").fill(name);
+  await page.getByLabel("Email address").fill(email);
+  await page.getByRole("textbox", { name: "Password", exact: true }).fill(password);
+  await page.getByLabel("Confirm password").fill(password);
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page).toHaveURL(/\//, { timeout: 30_000 });
 }
 
