@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, "release/**"]
+    branches: [main, development, "release/**"]
 
 permissions:
   contents: read
@@ -27,6 +27,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Automated QA tests
+        run: npm test
 
       - name: Lint
         run: |
