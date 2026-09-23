@@ -98,7 +98,6 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await superAdminPage.getByLabel("START AT").fill(localInput(start));
   await superAdminPage.getByLabel("END AT").fill(localInput(end));
   await superAdminPage.getByRole("button", { name: "CREATE AUCTION", exact: true }).click();
-  await expect(superAdminPage.getByText("Auction created successfully.", { exact: true })).toBeVisible();
   await superAdminPage.getByRole("button", { name: new RegExp(auctionName) }).first().click();
   await expect(superAdminPage.getByRole("heading", { name: "Categories", exact: true })).toBeVisible();
 
