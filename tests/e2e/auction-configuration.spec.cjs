@@ -91,8 +91,8 @@ test("full auction flow provisions roles, configures an auction, bids and settle
   await superAdminPage.getByRole("button", { name: "+ NEW AUCTION", exact: true }).first().click();
 
   const now = new Date();
-  const start = new Date(now.getTime() + 15_000);
-  const end = new Date(now.getTime() + 10 * 60_000);
+  const start = new Date(now.getTime() + 2 * 60_000);
+  const end = new Date(now.getTime() + 12 * 60_000);
 
   await superAdminPage.getByLabel("AUCTION NAME").fill(auctionName);
   await superAdminPage.getByLabel("START AT").fill(localInput(start));
