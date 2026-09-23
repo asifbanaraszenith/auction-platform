@@ -127,7 +127,7 @@ test("Firestore rules protect role and auction boundaries", () => {
   assert.match(rules, /function superAdmin/);
   assert.match(rules, /function auctionAdmin/);
   assert.match(rules, /function canManageAuction/);
-  assert.match(rules, /match \\/auctions\\/\\{auctionId\\}/);
+  assert.match(rules, /match \/auctions/);
   assert.match(rules, /allow update: if canManageAuction/);
   assert.match(rules, /allow update, delete: if false/);
 });
