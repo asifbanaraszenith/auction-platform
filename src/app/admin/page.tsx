@@ -5,13 +5,14 @@ import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
 import styles from "../auctions/auctions.module.css";
 
-type U = { uid: string; email: string; displayName: string; isAuctionAdmin: boolean };
+type U = { uid: string; email: string; displayName: string; isAuctionAdmin: boolean; isBidder: boolean };
 
 export default function AdminPage() {
   const { user, roles, loading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<U[]>([]);
   const [selectedUid, setSelectedUid] = useState("");
+  const [selectedBidderUid, setSelectedBidderUid] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -32,7 +33,8 @@ export default function AdminPage() {
     }
   }, [loading, user, roles, load]);
 
-  const availableUsers = useMemo(() => users.filter((u) => !u.isAuctionAdmin), [users]);
+  const availableUsers = useMemo(() => users.filter((u) => !u.isAuctionAdmin && !u.isBidder), [users]);
+  const availableBidderUsers = useMemo(() => users.filter((u) => !u.isAuctionAdmin && !u.isBidder), [users]);
   const selectedUser = users.find((u) => u.uid === selectedUid) ?? null;
 
   async function setAdmin(uid: string, isAuctionAdmin: boolean) {
@@ -45,11 +47,12 @@ export default function AdminPage() {
       const r = await fetch("/api/auction-admins", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-        body: JSON.stringify({ uid, isAuctionAdmin }),
+        body: JSON.stringify({ uid, role: isAuctionAdmin ? "auctionAdmin" : "bidder" }),
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p.error || "Unable to update role.");
       setSelectedUid("");
+      setSelectedBidderUid("");
       await load();
       setNotice(isAuctionAdmin ? "Auction Admin access granted." : "Auction Admin access removed.");
     } catch (e) {
@@ -97,6 +100,10 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+      </section>
+      <section className={styles.configSection}>
+        <div className={styles.configHeader}><div><p className={styles.eyebrow}>Bidder access</p><h2>Make a Bidder</h2><p>Grant bidder access to a registered account. The bidder can then be added to an auction and assigned to a team.</p></div></div>
+        <div className={styles.formGrid}><label>REGISTERED ACCOUNT<select value={selectedBidderUid} onChange={(e)=>setSelectedBidderUid(e.target.value)}><option value="">Select account</option>{availableBidderUsers.map(u=><option key={u.uid} value={u.uid}>{u.displayName||"Unnamed user"} — {u.email}</option>)}</select></label><div className={styles.rowActions}><button className={styles.primaryButton} disabled={!selectedBidderUid||busy===selectedBidderUid} onClick={()=>void setAdmin(selectedBidderUid,false /* legacy flag ignored below */)}>MAKE BIDDER</button></div></div>
       </section>
       <section className={styles.configSection}>
         <div className={styles.configHeader}>
