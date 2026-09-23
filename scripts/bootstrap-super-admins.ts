@@ -4,6 +4,7 @@ import { getAuth } from "firebase-admin/auth";
 const SUPER_ADMIN_EMAILS = new Set([
   "asifbanaras.zenith@gmail.com",
   "shaistanazir.zenith@gmail.com",
+  "superadmin@auction.com",
 ]);
 
 async function main() {
