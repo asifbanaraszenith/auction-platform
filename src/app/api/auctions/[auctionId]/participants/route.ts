@@ -18,8 +18,8 @@ export async function POST(request: Request, context: { params: Promise<{ auctio
       const basePrice = Number(category.data()?.defaultBasePrice ?? 0);
       const minimumBasePrice = Number(category.data()?.minimumBasePrice ?? basePrice);
       const now = Timestamp.now();
-      const existing = await auctionRef.collection("participants").where("playerId", "in", playerIds.slice(0, 10)).get();
-      if (existing.docs.length) return NextResponse.json({ error: "One or more selected participants are already registered in this auction." }, { status: 409 });
+      const existingChecks = await Promise.all(playerIds.map((playerId) => auctionRef.collection("participants").where("playerId", "==", playerId).limit(1).get()));
+      if (existingChecks.some((snapshot) => !snapshot.empty)) return NextResponse.json({ error: "One or more selected participants are already registered in this auction." }, { status: 409 });
       const ids: string[] = [];
       for (const playerId of playerIds) {
         const player = await db.collection("players").doc(playerId).get();
