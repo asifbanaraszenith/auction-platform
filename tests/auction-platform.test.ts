@@ -118,8 +118,9 @@ test("settlement and finalization enforce squad constraints", () => {
 
 test("audit trail exists", () => {
   const api = read("src/app/api/auctions/[auctionId]/audit/route.ts");
+  const settlement = read("src/app/api/auctions/[auctionId]/lots/[lotId]/settle/route.ts");
   assert.match(api, /auditLogs/);
-  assert.match(api, /actorId/);
+  assert.match(settlement, /actorId:decoded.uid/);
 });
 
 test("Firestore rules protect role and auction boundaries", () => {
