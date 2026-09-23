@@ -70,6 +70,74 @@ async function saveAdminAssignments() { if (!selected || !user || !isSuperAdmin)
   <div className={styles.themePanel}><div><p className={styles.eyebrow}>Secondary</p><h3>Layout & branding</h3><p>Visual identity remains configurable at the auction level.</p></div><div className={styles.themeGrid}><label>MODE<select value={theme.mode} onChange={(e) => changeThemeMode(e.target.value as "dark" | "light")}><option value="dark">Dark luxury</option><option value="light">Light gallery</option></select></label><label>FONT STYLE<select value={theme.fontStyle} onChange={(e) => setTheme({ ...theme, fontStyle: e.target.value as "luxury" | "modern" })}><option value="luxury">Luxury serif</option><option value="modern">Modern sans</option></select></label><label>PRIMARY<input type="color" value={theme.primaryColor} onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })} /></label><label>SECONDARY<input type="color" value={theme.secondaryColor} onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })} /></label><label>BACKGROUND<input type="color" value={theme.backgroundColor} onChange={(e) => setTheme({ ...theme, backgroundColor: e.target.value })} /></label><label>SURFACE<input type="color" value={theme.surfaceColor} onChange={(e) => setTheme({ ...theme, surfaceColor: e.target.value })} /></label></div></div>
   {selected && currentStatus === "live" && <div className={styles.lifecycle}><button className={styles.statusButton} disabled={busy} onClick={() => void changeLifecycle("paused")}>PAUSE AUCTION</button><button className={styles.statusButton} disabled={busy} onClick={() => void changeLifecycle("ended")}>END AUCTION</button></div>}{selected && currentStatus === "paused" && <div className={styles.lifecycle}><button className={styles.statusButton} disabled={busy} onClick={() => void changeLifecycle("live")}>RESUME AUCTION</button><button className={styles.statusButton} disabled={busy} onClick={() => void changeLifecycle("ended")}>END AUCTION</button></div>}
   <div className={styles.footerActions}><button className={styles.primaryButton} disabled={busy} onClick={() => void save()}>{busy ? "SAVING…" : selected ? "SAVE CHANGES" : "CREATE AUCTION"}</button><button className={styles.secondaryButton} disabled={busy} onClick={closeEditor}>CANCEL</button>{selected && isSuperAdmin && <button className={styles.dangerButton} disabled={busy} onClick={() => void remove()}>DELETE AUCTION</button>}</div>
-  {dialog && selected && <div className={styles.dialogBackdrop}><div className={styles.dialog} role="dialog" aria-modal="true"><div className={styles.dialogHeader}><div><p className={styles.eyebrow}>{dialog === "category" ? "Auction setup" : "Auction participant"}</p><h2>{dialog === "category" ? "Add category" : "Add participant"}</h2></div><button className={styles.closeButton} onClick={resetDialog}>×</button></div>{dialog === "category" ? <><div className={styles.formGrid}><label>CATEGORY NAME<input autoFocus value={categoryName} onChange={(e) => setCategoryName(e.target.value)} /></label><label>BASE PRICE<input type="number" min="0" value={categoryPrice} onChange={(e) => setCategoryPrice(e.target.value)} /></label><label>MINIMUM BASE PRICE<input type="number" min="0" value={minimumPrice} onChange={(e) => setMinimumPrice(e.target.value)} /></label></div><div className={styles.dialogActions}><button className={styles.secondaryButton} disabled={busy} onClick={resetDialog}>CANCEL</button><button className={styles.primaryButton} disabled={busy} onClick={() => void addCategory()}>{busy ? "ADDING…" : "ADD CATEGORY"}</button></div></> : <><div className={styles.dialogTabs}><button className={participantMode === "existing" ? styles.tabActive : styles.tab} onClick={() => setParticipantMode("existing")}>EXISTING PARTICIPANT</button><button className={participantMode === "new" ? styles.tabActive : styles.tab} onClick={() => setParticipantMode("new")}>CREATE NEW PARTICIPANT</button></div>{participantMode === "new" ? <><div className={styles.formGrid}><label>NAME<input autoFocus value={newPlayer} onChange={(e) => setNewPlayer(e.target.value)} /></label><label>EMAIL<input type="email" value={newPlayerEmail} onChange={(e) => setNewPlayerEmail(e.target.value)} placeholder="participant@example.com" /></label><label className={styles.full}>PICTURE<input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></label></div><button className={`${styles.primaryButton} ${styles.fullWidthButton}`} disabled={busy} onClick={() => void createNewParticipant()}>{busy ? "CREATING…" : "CREATE PARTICIPANT"}</button></> : <div className={styles.adminPicker}><button type="button" className={styles.adminPickerButton} onClick={() => setParticipantPickerOpen((open) => !open)} aria-expanded={participantPickerOpen}><span>{selectedPlayerIds.length === 0 ? "Select participants" : `${selectedPlayerIds.length} participant${selectedPlayerIds.length === 1 ? "" : "s"} selected`}</span><span>⌄</span></button>{participantPickerOpen && <div className={styles.adminPickerMenu}><div className={styles.pickerSearch}><input value={participantSearch} placeholder="Search participants…" onChange={(e) => setParticipantSearch(e.target.value)} /></div>{filteredPlayers.length === 0 ? <div className={styles.autocompleteEmpty}>No registered participants found.</div> : filteredPlayers.map((p) => <label key={p.id} className={styles.adminPickerOption}><input type="checkbox" checked={selectedPlayerIds.includes(p.id)} onChange={() => toggleParticipant(p)} /><span><strong>{p.displayName}</strong><small>{p.email || "Registered participant"}</small></span></label>)}</div>}<div className={styles.adminSelected}>{selectedPlayerIds.length === 0 ? <small>No participants selected.</small> : players.filter((p) => selectedPlayerIds.includes(p.id)).map((p) => <span key={p.id}>{p.displayName}</span>)}</div></div>{selectedPlayerIds.length > 0 && <div className={`${styles.formGrid} ${styles.participantAssignment}`}><label>EXPERTISE<input value={expertise} onChange={(e) => setExpertise(e.target.value)} placeholder="e.g. Batter, Bowler, Goalkeeper" /></label><label>CATEGORY<select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Select category</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name} — {c.defaultBasePrice} points</option>)}</select></label></div>}<div className={styles.dialogActions}><button className={styles.secondaryButton} disabled={busy} onClick={resetDialog}>CANCEL</button>{selectedPlayerIds.length > 0 && categoryId && expertise.trim() && <button className={styles.primaryButton} disabled={busy} onClick={() => void addParticipant()}>{busy ? "ADDING…" : "ADD TO AUCTION"}</button>}</div></>}</div></div>}
+  {dialog && selected && (
+    <div className={styles.dialogBackdrop}>
+      <div className={styles.dialog} role="dialog" aria-modal="true">
+        <div className={styles.dialogHeader}>
+          <div><p className={styles.eyebrow}>{dialog === "category" ? "Auction configuration" : "Auction participant"}</p><h2>{dialog === "category" ? "Add category" : "Add participants"}</h2></div>
+          <button className={styles.closeButton} onClick={resetDialog}>×</button>
+        </div>
+        {dialog === "category" ? (
+          <>
+            <div className={styles.formGrid}>
+              <label>CATEGORY NAME<input autoFocus value={categoryName} onChange={(e) => setCategoryName(e.target.value)} /></label>
+              <label>BASE PRICE<input type="number" min="0" value={categoryPrice} onChange={(e) => setCategoryPrice(e.target.value)} /></label>
+              <label>MINIMUM BASE PRICE<input type="number" min="0" value={minimumPrice} onChange={(e) => setMinimumPrice(e.target.value)} /></label>
+            </div>
+            <div className={styles.dialogActions}><button className={styles.secondaryButton} disabled={busy} onClick={resetDialog}>CANCEL</button><button className={styles.primaryButton} disabled={busy} onClick={() => void addCategory()}>{busy ? "ADDING…" : "ADD CATEGORY"}</button></div>
+          </>
+        ) : (
+          <>
+            <div className={styles.dialogTabs}>
+              <button className={participantMode === "existing" ? styles.tabActive : styles.tab} onClick={() => setParticipantMode("existing")}>EXISTING PARTICIPANT</button>
+              <button className={participantMode === "new" ? styles.tabActive : styles.tab} onClick={() => setParticipantMode("new")}>CREATE NEW PARTICIPANT</button>
+            </div>
+            {participantMode === "new" ? (
+              <>
+                <div className={styles.formGrid}>
+                  <label>NAME<input autoFocus value={newPlayer} onChange={(e) => setNewPlayer(e.target.value)} /></label>
+                  <label>EMAIL<input type="email" value={newPlayerEmail} onChange={(e) => setNewPlayerEmail(e.target.value)} placeholder="participant@example.com" /></label>
+                  <label className={styles.full}>PICTURE<input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></label>
+                </div>
+                <button className={`${styles.primaryButton} ${styles.fullWidthButton}`} disabled={busy} onClick={() => void createNewParticipant()}>{busy ? "CREATING…" : "CREATE PARTICIPANT"}</button>
+              </>
+            ) : (
+              <>
+                <div className={styles.adminPicker}>
+                  <button type="button" className={styles.adminPickerButton} onClick={() => setParticipantPickerOpen((open) => !open)} aria-expanded={participantPickerOpen}>
+                    <span>{selectedPlayerIds.length === 0 ? "Select participants" : selectedPlayerIds.length + " participant" + (selectedPlayerIds.length === 1 ? "" : "s") + " selected"}</span><span>⌄</span>
+                  </button>
+                  {participantPickerOpen && (
+                    <div className={styles.adminPickerMenu}>
+                      <div className={styles.pickerSearch}><input value={participantSearch} placeholder="Search participants…" onChange={(e) => setParticipantSearch(e.target.value)} /></div>
+                      {filteredPlayers.length === 0 ? <div className={styles.autocompleteEmpty}>No registered participants found.</div> : filteredPlayers.map((p) => (
+                        <label key={p.id} className={styles.adminPickerOption}>
+                          <input type="checkbox" checked={selectedPlayerIds.includes(p.id)} onChange={() => toggleParticipant(p)} />
+                          <span><strong>{p.displayName}</strong><small>{p.email || "Registered participant"}</small></span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <div className={styles.adminSelected}>
+                    {selectedPlayerIds.length === 0 ? <small>No participants selected.</small> : players.filter((p) => selectedPlayerIds.includes(p.id)).map((p) => <span key={p.id}>{p.displayName}</span>)}
+                  </div>
+                </div>
+                {selectedPlayerIds.length > 0 && (
+                  <div className={`${styles.formGrid} ${styles.participantAssignment}`}>
+                    <label>EXPERTISE<input value={expertise} onChange={(e) => setExpertise(e.target.value)} placeholder="e.g. Batter, Bowler, Goalkeeper" /></label>
+                    <label>CATEGORY<select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Select category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name} — {category.defaultBasePrice} points</option>)}</select></label>
+                  </div>
+                )}
+                <div className={styles.dialogActions}>
+                  <button className={styles.secondaryButton} disabled={busy} onClick={resetDialog}>CANCEL</button>
+                  {selectedPlayerIds.length > 0 && categoryId && expertise.trim() && <button className={styles.primaryButton} disabled={busy} onClick={() => void addParticipant()}>{busy ? "ADDING…" : "ADD TO AUCTION"}</button>}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )}
   </>}</section></div></main>;
 }
