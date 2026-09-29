@@ -89,6 +89,7 @@ test("full auction flow provisions roles, configures an auction, bids and settle
 
   await superAdminPage.goto("/admin");
   await expect(superAdminPage.getByRole("option", { name: `${adminName} — ${adminEmail}` }).first()).toBeAttached({ timeout: 30_000 });
+  await expect(superAdminPage.getByRole("heading", { name: "Auction Admins", exact: true }).locator("..").locator("..").getByText(adminEmail, { exact: true })).toBeVisible({ timeout: 30_000 });
   const adminApiResponses = [];
   const adminApiListener = async (response) => {
     if (response.url().includes("/api/auction-admins") && response.request().method() === "GET") {
@@ -139,8 +140,8 @@ test("full auction flow provisions roles, configures an auction, bids and settle
 
   const adminAccessSection = superAdminPage.getByText("Assign auction admins", { exact: true }).locator("xpath=../..");
   console.log("E2E_AUCTION_ADMIN_API_RESPONSES", JSON.stringify(adminApiResponses));
-  await expect(adminAccessSection.getByRole("button", { name: "Select auction admins", exact: true })).toBeVisible({ timeout: 30_000 });
-  await adminAccessSection.getByRole("button", { name: "Select auction admins", exact: true }).click();
+  await expect(adminAccessSection.getByRole("button", { name: /admin selected/, exact: true })).toBeVisible({ timeout: 30_000 });
+  await adminAccessSection.getByRole("button", { name: /admin selected/, exact: true }).click();
   await adminAccessSection.getByText(adminEmail, { exact: true }).click();
   await adminAccessSection.getByRole("button", { name: "SAVE ADMIN ASSIGNMENTS", exact: true }).click();
   await expect(superAdminPage.getByText("Auction admins updated successfully.", { exact: true })).toBeVisible();
