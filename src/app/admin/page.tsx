@@ -16,6 +16,8 @@ export default function AdminPage() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [adminPickerOpen, setAdminPickerOpen] = useState(false);
+  const [bidderPickerOpen, setBidderPickerOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -89,10 +91,12 @@ export default function AdminPage() {
         </div>
         <div className={styles.formGrid}>
           <label>REGISTERED ACCOUNT
-            <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)}>
-              <option value="">Select account</option>
-              {availableUsers.map((u) => <option key={u.uid} value={u.uid}>{u.displayName || "Unnamed user"} — {u.email}</option>)}
-            </select>
+            <div className={styles.adminPicker}>
+              <button type="button" className={styles.adminPickerButton} onClick={() => setAdminPickerOpen((open) => !open)} aria-expanded={adminPickerOpen}>
+                <span>{selectedUser ? `${selectedUser.displayName || "Unnamed user"} — ${selectedUser.email}` : "Select account"}</span><span aria-hidden="true">⌄</span>
+              </button>
+              {adminPickerOpen && <div className={styles.adminPickerMenu}>{availableUsers.map((u) => <button type="button" className={styles.adminPickerOption} key={u.uid} onClick={() => { setSelectedUid(u.uid); setAdminPickerOpen(false); }}><span><strong>{u.displayName || "Unnamed user"}</strong><small>{u.email}</small></span></button>)}</div>}
+            </div>
           </label>
           <div className={styles.rowActions}>
             <button className={styles.primaryButton} disabled={!selectedUser || busy === selectedUid} onClick={() => void setRole(selectedUid, "auctionAdmin")}>
@@ -103,9 +107,16 @@ export default function AdminPage() {
       </section>
       <section className={styles.configSection}>
         <div className={styles.configHeader}><div><p className={styles.eyebrow}>Bidder access</p><h2>Make a Bidder</h2><p>Grant bidder access to a registered account. The bidder can then be added to an auction and assigned to a team.</p></div></div>
-        <div className={styles.formGrid}><label>REGISTERED ACCOUNT<select value={selectedBidderUid} onChange={(e)=>setSelectedBidderUid(e.target.value)}><option value="">Select account</option>{availableBidderUsers.map(u=><option key={u.uid} value={u.uid}>{u.displayName||"Unnamed user"} — {u.email}</option>)}</select></label><div className={styles.rowActions}><button className={styles.primaryButton} disabled={!selectedBidderUid||busy===selectedBidderUid} onClick={()=>void setRole(selectedBidderUid,"bidder")}>MAKE BIDDER</button></div></div>
+        <div className={styles.formGrid}><label>REGISTERED ACCOUNT
+          <div className={styles.adminPicker}>
+            <button type="button" className={styles.adminPickerButton} onClick={() => setBidderPickerOpen((open) => !open)} aria-expanded={bidderPickerOpen}>
+              <span>{users.find((u) => u.uid === selectedBidderUid) ? `${users.find((u) => u.uid === selectedBidderUid)?.displayName || "Unnamed user"} — ${users.find((u) => u.uid === selectedBidderUid)?.email}` : "Select account"}</span><span aria-hidden="true">⌄</span>
+            </button>
+            {bidderPickerOpen && <div className={styles.adminPickerMenu}>{availableBidderUsers.map((u)=><button type="button" className={styles.adminPickerOption} key={u.uid} onClick={()=>{setSelectedBidderUid(u.uid);setBidderPickerOpen(false);}}><span><strong>{u.displayName||"Unnamed user"}</strong><small>{u.email}</small></span></button>)}</div>}
+          </div>
+        </label><div className={styles.rowActions}><button className={styles.primaryButton} disabled={!selectedBidderUid||busy===selectedBidderUid} onClick={()=>void setRole(selectedBidderUid,"bidder")}>MAKE BIDDER</button></div></div>
       </section>
-      <section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Current bidders</p><h2>Bidders</h2></div></div>{currentBidders.length===0?<div className={styles.empty}>No global bidders configured.</div>:<div className={styles.configList}>{currentBidders.map(u=><div className={styles.configRow} key={u.uid}><div><strong>{u.displayName||"Unnamed user"}</strong><small>{u.email}</small></div><button className={styles.dangerButton} disabled={busy===u.uid} onClick={()=>void setRole(u.uid,"viewer")}>{busy===u.uid?"SAVING…":"REMOVE BIDDER"}</button></div>)}</div>}</section><section className={styles.configSection}>
+      <section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Current bidders</p><h2>Bidders</h2></div></div>{currentBidders.length===0?<div className={styles.empty}>No global bidders configured.</div>:<div className={styles.configList}>{currentBidders.map(u=><div className={styles.configRow} key={u.uid}><div><strong>{u.displayName||"Unnamed user"}</strong><small>{u.email}</small></div><button className={styles.iconDangerButton} aria-label={`Remove bidder ${u.displayName || u.email}`} title="Remove bidder" disabled={busy===u.uid} onClick={()=>void setRole(u.uid,"viewer")}>{busy===u.uid?"…":"🗑"}</button></div>)}</div>}</section><section className={styles.configSection}>
         <div className={styles.configHeader}>
           <div>
             <p className={styles.eyebrow}>Current admins</p>
@@ -115,7 +126,7 @@ export default function AdminPage() {
         {currentAdmins.length === 0 ? <div className={styles.empty}>No Auction Admins configured.</div> : <div className={styles.configList}>
           {currentAdmins.map((u) => <div className={styles.configRow} key={u.uid}>
             <div><strong>{u.displayName || "Unnamed user"}</strong><small>{u.email}</small></div>
-            <button className={styles.dangerButton} disabled={busy === u.uid} onClick={() => void setRole(u.uid, "viewer")}>{busy === u.uid ? "SAVING…" : "REMOVE ADMIN"}</button>
+            <button className={styles.iconDangerButton} aria-label={`Remove admin ${u.displayName || u.email}`} title="Remove admin" disabled={busy === u.uid} onClick={() => void setRole(u.uid, "viewer")}>{busy === u.uid ? "…" : "🗑"}</button>
           </div>)}
         </div>}
       </section>
