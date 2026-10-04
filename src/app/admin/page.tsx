@@ -39,7 +39,7 @@ export default function AdminPage() {
   const availableBidderUsers = useMemo(() => users.filter((u) => !u.isAuctionAdmin && !u.isBidder), [users]);
 
 
-  async function setRoles(uids: string[], role: "auctionAdmin" | "bidder") {
+  async function setRoles(uids: string[], role: "auctionAdmin" | "bidder" | "viewer") {
     if (!user || uids.length === 0) return;
     setBusy(true);
     setError("");
@@ -119,7 +119,7 @@ export default function AdminPage() {
           </label>
           <div className={styles.rowActions}><button className={styles.primaryButton} disabled={!selectedBidderUids.length || busy} onClick={() => void setRoles(selectedBidderUids, "bidder")}>{busy ? "GRANTING…" : "MAKE BIDDER"}</button></div>
         </div>      </section>
-      <section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Current bidders</p><h2>Bidders</h2></div></div>{currentBidders.length===0?<div className={styles.empty}>No global bidders configured.</div>:<div className={styles.configList}>{currentBidders.map(u=><div className={styles.configRow} key={u.uid}><div><strong>{u.displayName||"Unnamed user"}</strong><small>{u.email}</small></div><button className={styles.iconDangerButton} aria-label={`Remove bidder ${u.displayName || u.email}`} title="Remove bidder" disabled={busy} onClick={()=>void setRole(u.uid,"viewer")}>{busy===u.uid?"…":"🗑"}</button></div>)}</div>}</section><section className={styles.configSection}>
+      <section className={styles.configSection}><div className={styles.configHeader}><div><p className={styles.eyebrow}>Current bidders</p><h2>Bidders</h2></div></div>{currentBidders.length===0?<div className={styles.empty}>No global bidders configured.</div>:<div className={styles.configList}>{currentBidders.map(u=><div className={styles.configRow} key={u.uid}><div><strong>{u.displayName||"Unnamed user"}</strong><small>{u.email}</small></div><button className={styles.iconDangerButton} aria-label={`Remove bidder ${u.displayName || u.email}`} title="Remove bidder" disabled={busy} onClick={()=>void setRoles([u.uid],"viewer")}>{busy?"…":"🗑"}</button></div>)}</div>}</section><section className={styles.configSection}>
         <div className={styles.configHeader}>
           <div>
             <p className={styles.eyebrow}>Current admins</p>
@@ -129,7 +129,7 @@ export default function AdminPage() {
         {currentAdmins.length === 0 ? <div className={styles.empty}>No Auction Admins configured.</div> : <div className={styles.configList}>
           {currentAdmins.map((u) => <div className={styles.configRow} key={u.uid}>
             <div><strong>{u.displayName || "Unnamed user"}</strong><small>{u.email}</small></div>
-            <button className={styles.iconDangerButton} aria-label={`Remove admin ${u.displayName || u.email}`} title="Remove admin" disabled={busy} onClick={() => void setRole(u.uid, "viewer")}>{busy === u.uid ? "…" : "🗑"}</button>
+            <button className={styles.iconDangerButton} aria-label={`Remove admin ${u.displayName || u.email}`} title="Remove admin" disabled={busy} onClick={() => void setRoles([u.uid], "viewer")}>{busy ? "…" : "🗑"}</button>
           </div>)}
         </div>}
       </section>
